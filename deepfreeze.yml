@@ -1,0 +1,5 @@
+---
+options:
+  bucket_name_prefix: bdw-test-df
+  rotate_by: path
+  style: oneup
