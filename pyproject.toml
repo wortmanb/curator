@@ -30,7 +30,8 @@ keywords = [
 ]
 dependencies = [
     "es_client==8.15.2",
-    "boto3"
+    "boto3",
+    "rich"
 ]
 
 [project.optional-dependencies]
