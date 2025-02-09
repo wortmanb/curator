@@ -12,6 +12,7 @@ from datetime import datetime
 from elasticsearch8 import Elasticsearch
 from elasticsearch8.exceptions import NotFoundError
 from rich import print
+from rich.align import Align
 from rich.console import Console
 from rich.table import Table
 
@@ -149,6 +150,20 @@ class Settings:
 #
 
 
+def get_cluster_name(client: Elasticsearch) -> str:
+    """
+    Connects to the Elasticsearch cluster and returns its name.
+
+    :param es_host: The URL of the Elasticsearch instance (default: "http://localhost:9200").
+    :return: The name of the Elasticsearch cluster.
+    """
+    try:
+        cluster_info = client.cluster.health()
+        return cluster_info.get("cluster_name", "Unknown Cluster")
+    except Exception as e:
+        return f"Error: {e}"
+
+
 def thaw_repo(
     s3: S3Client,
     bucket_name: str,
@@ -176,10 +191,13 @@ def thaw_repo(
         return
 
     # Loop through each object and initiate restore for Glacier objects
+    count = 0
     for obj in response["Contents"]:
         object_key = obj["Key"]
 
         # Initiate the restore request for each object
+        logging.debug("Initiating restore request for %s", object_key)
+        count += 1
         s3.restore_object(
             Bucket=bucket_name,
             Key=object_key,
@@ -191,7 +209,7 @@ def thaw_repo(
             },
         )
 
-        print(f"Restore request initiated for {object_key}")
+    print(f"Requested restore of {count} objects")
 
 
 def get_all_indices_in_repo(client: Elasticsearch, repository: str) -> list[str]:
@@ -461,6 +479,12 @@ def decode_date(date_in: str) -> datetime:
     else:
         return datetime.now()  # FIXME: This should be a value error
         # raise ValueError("Invalid date format")
+
+
+def print_centered_text(text):
+    console = Console()
+    centered_text = Align.center(text)
+    console.print(centered_text)
 
 
 class Setup:
@@ -876,6 +900,8 @@ class Status:
         """
         self.loggit.info("Getting status")
         print()
+        cluster_name = get_cluster_name(self.client)
+        print(f"[cyan bold]{cluster_name}[/cyan bold]")
 
         self.do_repositories()
         self.do_buckets()
