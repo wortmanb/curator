@@ -4,15 +4,11 @@ import logging
 
 from elasticsearch8 import Elasticsearch
 
-from curator.actions.deepfreeze import (
-    Settings,
-    create_new_repo,
-    ensure_settings_index,
-    get_repos,
-    save_settings,
-)
 from curator.exceptions import RepositoryException
 from curator.s3client import s3_client_factory
+
+from .settings import Settings
+from .utilities import create_new_repo, ensure_settings_index, get_repos, save_settings
 
 
 class Setup:

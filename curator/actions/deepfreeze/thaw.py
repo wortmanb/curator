@@ -5,14 +5,10 @@ from datetime import datetime
 
 from elasticsearch8 import Elasticsearch
 
-from curator.actions.deepfreeze import (
-    ThawedRepo,
-    ThawSet,
-    decode_date,
-    get_settings,
-    thaw_repo,
-)
 from curator.s3client import s3_client_factory
+
+from .thawset import ThawedRepo, ThawSet
+from .utilities import decode_date, get_settings, thaw_repo
 
 
 class Thaw:

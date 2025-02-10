@@ -4,7 +4,6 @@ import logging
 import re
 from datetime import datetime
 
-from deepfreeze import SETTINGS_ID, STATUS_INDEX, Repository, Settings
 from elasticsearch8 import Elasticsearch
 from elasticsearch8.exceptions import NotFoundError
 from rich import print
@@ -13,6 +12,10 @@ from rich.console import Console
 
 from curator.exceptions import ActionError
 from curator.s3client import S3Client
+
+from .constants import SETTINGS_ID, STATUS_INDEX
+from .repository import Repository
+from .settings import Settings
 
 #
 #

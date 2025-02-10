@@ -7,13 +7,8 @@ from rich import print
 from rich.console import Console
 from rich.table import Table
 
-from curator.actions.deepfreeze import (
-    STATUS_INDEX,
-    get_cluster_name,
-    get_repos,
-    get_settings,
-    get_unmounted_repos,
-)
+from .constants import STATUS_INDEX
+from .utilities import get_cluster_name, get_repos, get_settings, get_unmounted_repos
 
 
 class Status:

@@ -5,9 +5,12 @@ import sys
 
 from elasticsearch8 import Elasticsearch
 
-from curator.actions.deepfreeze import (
-    STATUS_INDEX,
-    Repository,
+from curator.exceptions import RepositoryException
+from curator.s3client import s3_client_factory
+
+from .constants import STATUS_INDEX
+from .repository import Repository
+from .utilities import (
     create_new_repo,
     ensure_settings_index,
     get_next_suffix,
@@ -17,8 +20,6 @@ from curator.actions.deepfreeze import (
     save_settings,
     unmount_repo,
 )
-from curator.exceptions import RepositoryException
-from curator.s3client import s3_client_factory
 
 
 class Rotate:
