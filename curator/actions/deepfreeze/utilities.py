@@ -440,12 +440,7 @@ def get_repos(client: Elasticsearch, repo_name_prefix: str) -> list[Repository]:
 
     :raises Exception: If the repository does not exist
     """
-    repos = client.snapshot.get_repository()
-    logging.debug("Repos retrieved: %s", repos)
-    pattern = re.compile(repo_name_prefix)
-    logging.debug("Looking for repos matching %s", repo_name_prefix)
-    df_repos = [repo for repo in repos if pattern.search(repo)]
-    return [Repository(name=repo) for repo in df_repos]
+    return [Repository(name=repo) for repo in get_repo_names(client, repo_name_prefix)]
 
 
 def get_thawset(client: Elasticsearch, thawset_id: str) -> ThawSet:
