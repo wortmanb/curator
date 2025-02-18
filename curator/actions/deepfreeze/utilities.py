@@ -403,7 +403,7 @@ def get_unmounted_repos(client: Elasticsearch) -> list[Repository]:
     return [Repository(repo["_source"]) for repo in repos]
 
 
-def get_repo_names(client: Elasticsearch, repo_name_prefix: str) -> list[str]:
+def get_matching_repo_names(client: Elasticsearch, repo_name_prefix: str) -> list[str]:
     """
     Get the complete list of repos and return just the ones whose names
     begin with the given prefix.
@@ -425,7 +425,9 @@ def get_repo_names(client: Elasticsearch, repo_name_prefix: str) -> list[str]:
     return [repo for repo in repos if pattern.search(repo)]
 
 
-def get_repos(client: Elasticsearch, repo_name_prefix: str) -> list[Repository]:
+def get_matching_repos(
+    client: Elasticsearch, repo_name_prefix: str
+) -> list[Repository]:
     """
     Get the list of repos from our index and return a Repository object for each one
     which matches the given prefix.
@@ -440,7 +442,10 @@ def get_repos(client: Elasticsearch, repo_name_prefix: str) -> list[Repository]:
 
     :raises Exception: If the repository does not exist
     """
-    return [Repository(name=repo) for repo in get_repo_names(client, repo_name_prefix)]
+    return [
+        Repository(name=repo)
+        for repo in get_matching_repo_names(client, repo_name_prefix)
+    ]
 
 
 def get_thawset(client: Elasticsearch, thawset_id: str) -> ThawSet:

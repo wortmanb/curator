@@ -14,9 +14,9 @@ from curator.actions.deepfreeze.utilities import (
     decode_date,
     ensure_settings_index,
     get_all_indices_in_repo,
+    get_matching_repo_names,
+    get_matching_repos,
     get_next_suffix,
-    get_repo_names,
-    get_repos,
     get_settings,
     get_timestamp_range,
     push_to_glacier,
@@ -83,7 +83,9 @@ class Rotate:
             self.base_path = f"{self.settings.base_path_prefix}-{self.suffix}"
 
         self.loggit.debug("Getting repo list")
-        self.repo_list = get_repo_names(self.client, self.settings.repo_name_prefix)
+        self.repo_list = get_matching_repo_names(
+            self.client, self.settings.repo_name_prefix
+        )
         self.repo_list.sort(reverse=True)
         self.loggit.debug("Repo list: %s", self.repo_list)
         self.latest_repo = ""
@@ -115,7 +117,7 @@ class Rotate:
         """
         self.loggit.debug("Updating repo date ranges")
         # Get the repo objects (not names) which match our prefix
-        repos = get_repos(self.client, self.settings.repo_name_prefix)
+        repos = get_matching_repos(self.client, self.settings.repo_name_prefix)
         # Now loop through the repos, updating the date range for each
         for repo in repos:
             self.loggit.debug("Updating date range for %s", repo.name)

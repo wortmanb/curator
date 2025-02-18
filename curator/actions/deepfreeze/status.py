@@ -11,7 +11,7 @@ from rich.table import Table
 
 from curator.actions.deepfreeze.constants import STATUS_INDEX
 from curator.actions.deepfreeze.utilities import (
-    get_repo_names,
+    get_matching_repo_names,
     get_settings,
     get_unmounted_repos,
 )
@@ -200,7 +200,7 @@ class Status:
             self.loggit.warning("No status index found")
             return
         active_repo = f"{self.settings.repo_name_prefix}-{self.settings.last_suffix}"
-        repolist = get_repo_names(self.client, self.settings.repo_name_prefix)
+        repolist = get_matching_repo_names(self.client, self.settings.repo_name_prefix)
         repolist.sort()
         for repo in repolist:
             if repo == active_repo:

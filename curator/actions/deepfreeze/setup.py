@@ -11,7 +11,12 @@ from curator.exceptions import RepositoryException
 from curator.s3client import s3_client_factory
 
 from .helpers import Settings
-from .utilities import create_repo, ensure_settings_index, get_repo_names, save_settings
+from .utilities import (
+    create_repo,
+    ensure_settings_index,
+    get_matching_repo_names,
+    save_settings,
+)
 
 
 class Setup:
@@ -92,7 +97,9 @@ class Setup:
             self.base_path = f"{self.base_path}-{self.suffix}"
 
         self.loggit.debug("Getting repo list")
-        self.repo_list = get_repo_names(self.client, self.settings.repo_name_prefix)
+        self.repo_list = get_matching_repo_names(
+            self.client, self.settings.repo_name_prefix
+        )
         self.repo_list.sort()
         self.loggit.debug("Repo list: %s", self.repo_list)
 
