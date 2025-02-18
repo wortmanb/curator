@@ -925,3 +925,14 @@ ilm_delete_proto = ('---\n'
 '        field: {6}\n'
 '        stats_result: {7}\n'
 '        epoch: {8}\n')
+df_ilm_policy = "df-test-ilm-policy"
+df_bucket_name = "df-test-bucket"
+df_repo_name = "df-test-repo"
+df_providers = ["aws", "gcp", "azure"]
+df_base_path = "/df-test-path"
+df_acl = "private"
+df_storage_class = "Standard"
+df_rotate_by = "path"
+df_style = "oneup"
+df_month = "05"
+df_year = "2024"
