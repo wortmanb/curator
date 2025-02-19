@@ -1034,10 +1034,12 @@ ilm_delete_proto = (
     '        epoch: {8}\n'
 )
 df_ilm_policy = "df-test-ilm-policy"
-df_bucket_name = "df-test-bucket-bdw"
+df_bucket_name = "df"
+df_bucket_name_2 = "df-test"
 df_repo_name = "df-test-repo"
 df_providers = ["aws", "gcp", "azure"]
 df_base_path = "/df-test-path"
+df_base_path_2 = "/df-another-test-path"
 df_acl = "private"
 df_storage_class = "Standard"
 df_rotate_by = "path"
