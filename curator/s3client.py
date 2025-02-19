@@ -99,6 +99,18 @@ class S3Client:
         """
         raise NotImplementedError("Subclasses should implement this method")
 
+    def deleete_bucket(self, bucket_name: str) -> None:
+        """
+        Delete a bucket with the given name.
+
+        Args:
+            bucket_name (str): The name of the bucket to delete.
+
+        Returns:
+            None
+        """
+        raise NotImplementedError("Subclasses should implement this method")
+
 
 class AwsS3Client(S3Client):
     """
@@ -118,12 +130,24 @@ class AwsS3Client(S3Client):
             raise ActionError(e)
 
     def bucket_exists(self, bucket_name: str) -> bool:
-        # TODO: Write a call to the S3 service to test bucket existence
-        return self.client.get_bucket(bucket_name)
+        try:
+            self.client.head_bucket(Bucket=bucket_name)
+            return True
+        except ClientError as e:
+            if e.response["Error"]["Code"] == "404":
+                return False
+            else:
+                self.loggit.error(e)
+                raise ActionError(e)
 
     def delete_bucket(self, bucket_name: str) -> None:
         # TODO: Write a call to the S3 service to delete the named bucket
-        self.client.delete_bucket(bucket_name)
+        self.loggit.info(f"Deleting bucket: {bucket_name}")
+        try:
+            self.client.delete_bucket(Bucket=bucket_name)
+        except ClientError as e:
+            self.loggit.error(e)
+            raise ActionError(e)
 
     def thaw(
         self,
@@ -236,6 +260,23 @@ class AwsS3Client(S3Client):
                     object_keys.append(obj["Key"])
 
         return object_keys
+
+    def delete_bucket(self, bucket_name: str) -> None:
+        """
+        Delete a bucket with the given name.
+
+        Args:
+            bucket_name (str): The name of the bucket to delete.
+
+        Returns:
+            None
+        """
+        self.loggit.info(f"Deleting bucket: {bucket_name}")
+        try:
+            self.client.delete_bucket(Bucket=bucket_name)
+        except ClientError as e:
+            self.loggit.error(e)
+            raise ActionError(e)
 
 
 def s3_client_factory(provider: str) -> S3Client:

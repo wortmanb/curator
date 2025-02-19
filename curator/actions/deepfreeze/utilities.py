@@ -6,7 +6,7 @@ import logging
 import re
 from datetime import datetime, time
 
-from elasticsearch import Elasticsearch, NotFoundError
+from elasticsearch8 import Elasticsearch, NotFoundError
 
 from curator.actions import CreateIndex
 from curator.actions.deepfreeze import Repository

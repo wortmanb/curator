@@ -53,8 +53,8 @@ class Setup:
     def __init__(
         self,
         client: Elasticsearch,
-        year: int,
-        month: int,
+        year: int = None,
+        month: int = None,
         repo_name_prefix: str = "deepfreeze",
         bucket_name_prefix: str = "deepfreeze",
         base_path_prefix: str = "snapshots",
@@ -70,15 +70,16 @@ class Setup:
         self.client = client
         self.year = year
         self.month = month
-        self.settings = Settings()
-        self.settings.repo_name_prefix = repo_name_prefix
-        self.settings.bucket_name_prefix = bucket_name_prefix
-        self.settings.base_path_prefix = base_path_prefix
-        self.settings.canned_acl = canned_acl
-        self.settings.storage_class = storage_class
-        self.settings.provider = provider
-        self.settings.rotate_by = rotate_by
-        self.settings.style = style
+        self.settings = Settings(
+            repo_name_prefix=repo_name_prefix,
+            bucket_name_prefix=bucket_name_prefix,
+            base_path_prefix=base_path_prefix,
+            canned_acl=canned_acl,
+            storage_class=storage_class,
+            provider=provider,
+            rotate_by=rotate_by,
+            style=style,
+        )
         self.base_path = self.settings.base_path_prefix
 
         self.s3 = s3_client_factory(self.settings.provider)

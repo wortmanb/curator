@@ -335,4 +335,4 @@ class CuratorTestCase(TestCase):
 
     def get_settings(self):
         doc = client.get(index=STATUS_INDEX, id=SETTINGS_ID)
-        return Settings(doc["_source"])
+        return Settings(**doc["_source"])
