@@ -106,7 +106,7 @@ class Setup:
 
         if len(self.repo_list) > 0:
             raise RepositoryException(
-                f"repositories matching {self.settings.repo_jname_prefix}-* already exist"
+                f"repositories matching {self.settings.repo_name_prefix}-* already exist"
             )
         self.loggit.debug("Deepfreeze Setup initialized")
 
