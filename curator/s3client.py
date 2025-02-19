@@ -111,6 +111,20 @@ class S3Client:
         """
         raise NotImplementedError("Subclasses should implement this method")
 
+    def put_object(self, bucket_name: str, key: str, body: str = "") -> None:
+        """
+        Put an object in a bucket at the given path.
+
+        Args:
+            bucket_name (str): The name of the bucket to put the object in.
+            key (str): The key of the object to put.
+            body (str): The body of the object to put.
+
+        Returns:
+            None
+        """
+        raise NotImplementedError("Subclasses should implement this method")
+
 
 class AwsS3Client(S3Client):
     """
@@ -277,6 +291,25 @@ class AwsS3Client(S3Client):
         self.loggit.info(f"Deleting bucket: {bucket_name}")
         try:
             self.client.delete_bucket(Bucket=bucket_name)
+        except ClientError as e:
+            self.loggit.error(e)
+            raise ActionError(e)
+
+    def put_object(self, bucket_name: str, key: str, body: str = "") -> None:
+        """
+        Put an object in a bucket.
+
+        Args:
+            bucket_name (str): The name of the bucket to put the object in.
+            key (str): The key of the object to put.
+            body (str): The body of the object to put.
+
+        Returns:
+            None
+        """
+        self.loggit.info(f"Putting object: {key} in bucket: {bucket_name}")
+        try:
+            self.client.put_object(Bucket=bucket_name, Key=key, Body=body)
         except ClientError as e:
             self.loggit.error(e)
             raise ActionError(e)
