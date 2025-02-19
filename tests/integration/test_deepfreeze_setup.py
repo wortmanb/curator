@@ -76,6 +76,67 @@ class TestCLISetup(CuratorTestCase):
             self.client.indices.delete(index=STATUS_INDEX)
             s3.delete_bucket(testvars.df_bucket_name)
 
+    def test_setup_with_ilm(self):
+        warnings.filterwarnings(
+            "ignore", category=DeprecationWarning, module="botocore.auth"
+        )
+        for provider in PROVIDERS:
+            s3 = s3_client_factory(provider)
+            testvars.df_bucket_name = f"{testvars.df_bucket_name}-{random_suffix()}"
+
+            setup = Setup(
+                self.client,
+                bucket_name_prefix=testvars.df_bucket_name,
+                repo_name_prefix=testvars.df_repo_name,
+                base_path_prefix=testvars.df_base_path,
+                storage_class=testvars.df_storage_class,
+                rotate_by=testvars.df_rotate_by,
+                style=testvars.df_style,
+                create_sample_ilm_policy=True,
+                ilm_policy_name=testvars.df_ilm_policy,
+            )
+            setup.do_action()
+            # Don't ask me why this is necessary, but the test has a tendency to fail
+            # without it.
+            time.sleep(INTERVAL)
+            csi = self.client.cluster.state(metric=MET)[MET]["indices"]
+
+            # Specific assertions
+            # Settings index should exist
+            assert csi[STATUS_INDEX]
+            # Settings doc should exist within index
+            assert self.client.get(index=STATUS_INDEX, id=SETTINGS_ID)
+            # Settings index should only have settings doc (count == 1)
+            assert 1 == self.client.count(index=STATUS_INDEX)["count"]
+            # Repo should exist
+            assert self.client.snapshot.get_repository(
+                name=f"{testvars.df_repo_name}-000001"
+            )
+            # Bucket should exist
+            assert s3.bucket_exists(testvars.df_bucket_name)
+            # ILM policy should exist
+            assert self.client.ilm.get_lifecycle(name=testvars.df_ilm_policy)
+            # We can't test the base path on AWS because it won't be created until the
+            #  first object is written, but we can test the settings to see if it's correct
+            #  there.
+            s = self.get_settings()
+            assert s.base_path_prefix == testvars.df_base_path
+            assert s.last_suffix == "000001"
+            assert s.canned_acl == testvars.df_acl
+            assert s.storage_class == testvars.df_storage_class
+            assert s.provider == "aws"
+            assert s.rotate_by == testvars.df_rotate_by
+            assert s.style == testvars.df_style
+            assert s.repo_name_prefix == testvars.df_repo_name
+            assert s.bucket_name_prefix == testvars.df_bucket_name
+
+            # Clean up
+            self.client.snapshot.delete_repository(
+                name=f"{testvars.df_repo_name}-000001"
+            )
+            self.client.indices.delete(index=STATUS_INDEX)
+            s3.delete_bucket(testvars.df_bucket_name)
+
     def test_setup_bucket_exists(self):
         warnings.filterwarnings(
             "ignore", category=DeprecationWarning, module="botocore.auth"

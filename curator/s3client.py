@@ -99,7 +99,7 @@ class S3Client:
         """
         raise NotImplementedError("Subclasses should implement this method")
 
-    def deleete_bucket(self, bucket_name: str) -> None:
+    def delete_bucket(self, bucket_name: str) -> None:
         """
         Delete a bucket with the given name.
 

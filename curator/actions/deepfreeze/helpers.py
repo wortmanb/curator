@@ -6,6 +6,8 @@ import json
 from dataclasses import dataclass
 from datetime import datetime
 
+from elasticsearch import Elasticsearch
+
 from .constants import STATUS_INDEX
 
 
@@ -137,9 +139,9 @@ class Repository:
     is_mounted: bool = True
     doctype: str = "repository"
 
-    def __init__(self, repo_hash=None, name=None) -> None:
+    def __init__(self, repo_hash=None, es: Elasticsearch = None, name=None) -> None:
         if name is not None:
-            repo_hash = self.client.get(index=STATUS_INDEX, id=name)["_source"]
+            repo_hash = es.get(index=STATUS_INDEX, id=name)["_source"]
         if repo_hash is not None:
             for key, value in repo_hash.items():
                 setattr(self, key, value)

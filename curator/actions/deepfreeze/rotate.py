@@ -61,6 +61,7 @@ class Rotate:
 
         self.settings = get_settings(client)
         self.loggit.debug("Settings: %s", str(self.settings))
+        print(f"Settings: {str(self.settings)}")
 
         self.client = client
         self.keep = int(keep)
@@ -298,7 +299,9 @@ class Rotate:
         ensure_settings_index(self.client)
         self.loggit.debug("Saving settings")
         save_settings(self.client, self.settings)
-        self.s3.create_bucket(self.new_bucket_name)
+        # Create the new bucket and repo, but only if rotate_by is bucket.
+        if self.settings.rotate_by == "bucket":
+            self.s3.create_bucket(self.new_bucket_name)
         create_repo(
             self.client,
             self.new_repo_name,
