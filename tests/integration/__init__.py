@@ -45,6 +45,12 @@ def random_directory():
     return directory
 
 
+def random_suffix():
+    return "".join(
+        random.choice(string.ascii_uppercase + string.digits) for _ in range(8)
+    ).lower()
+
+
 def get_client():
     # pylint: disable=global-statement, invalid-name
     global client
