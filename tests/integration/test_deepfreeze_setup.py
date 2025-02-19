@@ -4,9 +4,11 @@ Test deepfreeze setup functionality
 
 # pylint: disable=missing-function-docstring, missing-class-docstring, line-too-long
 import os
+import time
 import warnings
 
 from curator.actions.deepfreeze import PROVIDERS, SETTINGS_ID, STATUS_INDEX, Setup
+from curator.exceptions import ActionError
 from curator.s3client import s3_client_factory
 
 from . import CuratorTestCase, testvars
@@ -33,6 +35,9 @@ class TestCLISetup(CuratorTestCase):
                 style=testvars.df_style,
             )
             setup.do_action()
+            # Don't ask me why this is necessary, but the test has a tendency to fail
+            # without it.
+            time.sleep(5)
             csi = self.client.cluster.state(metric=MET)[MET]["indices"]
 
             # Specific assertions
@@ -62,12 +67,35 @@ class TestCLISetup(CuratorTestCase):
             assert s.repo_name_prefix == testvars.df_repo_name
             assert s.bucket_name_prefix == testvars.df_bucket_name
 
-            # Cleanup
-            self.delete_repositories()
+            # Clean up
+            self.client.snapshot.delete_repository(
+                name=f"{testvars.df_repo_name}-000001"
+            )
+            self.client.indices.delete(index=STATUS_INDEX)
             s3.delete_bucket(testvars.df_bucket_name)
 
-    # def test_setup_bucket_exists(self):
-    #     pass
+    def test_setup_bucket_exists(self):
+        warnings.filterwarnings(
+            "ignore", category=DeprecationWarning, module="botocore.auth"
+        )
+        s3 = s3_client_factory('aws')
+        s3.create_bucket(testvars.df_bucket_name)
+        time.sleep(5)
+
+        setup = Setup(
+            self.client,
+            bucket_name_prefix=testvars.df_bucket_name,
+            repo_name_prefix=testvars.df_repo_name,
+            base_path_prefix=testvars.df_base_path,
+            storage_class=testvars.df_storage_class,
+            rotate_by=testvars.df_rotate_by,
+            style=testvars.df_style,
+        )
+        with self.assertRaises(ActionError):
+            setup.do_action()
+        # Clean up
+        self.client.indices.delete(index=STATUS_INDEX)
+        s3.delete_bucket(testvars.df_bucket_name)
 
     # def test_setup_path_exists(self):
     #     pass

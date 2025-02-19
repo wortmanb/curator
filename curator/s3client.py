@@ -123,6 +123,9 @@ class AwsS3Client(S3Client):
 
     def create_bucket(self, bucket_name: str) -> None:
         self.loggit.info(f"Creating bucket: {bucket_name}")
+        if self.bucket_exists(bucket_name):
+            self.loggit.info(f"Bucket {bucket_name} already exists")
+            raise ActionError(f"Bucket {bucket_name} already exists")
         try:
             self.client.create_bucket(Bucket=bucket_name)
         except ClientError as e:
