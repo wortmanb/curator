@@ -257,7 +257,7 @@ def get_settings(client: Elasticsearch) -> Settings:
     try:
         doc = client.get(index=STATUS_INDEX, id=SETTINGS_ID)
         loggit.info("Settings document found")
-        return Settings(doc["_source"])
+        return Settings(**doc["_source"])
     except NotFoundError:
         loggit.info("Settings document not found")
         return None
@@ -443,7 +443,7 @@ def get_matching_repos(
     :raises Exception: If the repository does not exist
     """
     return [
-        Repository(name=repo)
+        Repository(name=repo, es=client)
         for repo in get_matching_repo_names(client, repo_name_prefix)
     ]
 
@@ -625,3 +625,34 @@ def check_is_s3_thawed(s3: S3Client, thawset: ThawSet) -> bool:
             print("Restore not complete for %s", repo)
             return False
     return True
+
+
+def create_ilm_policy(
+    client: Elasticsearch, policy_name: str, policy_body: str
+) -> None:
+    """
+    Create a sample ILM policy.
+
+    :param client: A client connection object
+    :type client: Elasticsearch
+    :param policy_name: The name of the policy to create
+    :type policy_name: str
+
+    :return: None
+    :rtype: None
+
+    :raises Exception: If the policy cannot be created
+    :raises Exception: If the policy already exists
+    :raises Exception: If the policy cannot be retrieved
+    :raises Exception: If the policy is not empty
+    """
+    loggit = logging.getLogger("curator.actions.deepfreeze")
+    loggit.info("Creating ILM policy %s", policy_name)
+    try:
+        response = client.ilm.put_lifecycle(name=policy_name, body=policy_body)
+    except Exception as e:
+        loggit.error(e)
+        print(
+            f"[magenta]Error creating ILM policy. Ensure AWS credentials have been added to keystore:[/magenta] {e}"
+        )
+        raise ActionError(e)

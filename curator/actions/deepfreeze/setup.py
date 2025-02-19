@@ -12,6 +12,7 @@ from curator.s3client import s3_client_factory
 
 from .helpers import Settings
 from .utilities import (
+    create_ilm_policy,
     create_repo,
     ensure_settings_index,
     get_matching_repo_names,
@@ -63,6 +64,8 @@ class Setup:
         provider: str = "aws",
         rotate_by: str = "path",
         style: str = "oneup",
+        create_sample_ilm_policy: bool = False,
+        ilm_policy_name: str = "deepfreeze-sample-policy",
     ) -> None:
         self.loggit = logging.getLogger("curator.actions.deepfreeze")
         self.loggit.debug("Initializing Deepfreeze Setup")
@@ -80,6 +83,8 @@ class Setup:
             rotate_by=rotate_by,
             style=style,
         )
+        self.create_sample_ilm_policy = create_sample_ilm_policy
+        self.ilm_policy_name = ilm_policy_name
         self.base_path = self.settings.base_path_prefix
 
         self.s3 = s3_client_factory(self.settings.provider)
@@ -150,6 +155,39 @@ class Setup:
             self.settings.canned_acl,
             self.settings.storage_class,
         )
+        if self.create_sample_ilm_policy:
+            policy_name = self.ilm_policy_name
+            policy_body = {
+                "policy": {
+                    "phases": {
+                        "hot": {
+                            "min_age": "0ms",
+                            "actions": {
+                                "rollover": {"max_size": "45gb", "max_age": "7d"}
+                            },
+                        },
+                        "frozen": {
+                            "min_age": "14d",
+                            "actions": {
+                                "searchable_snapshot": {
+                                    "snapshot_repository": self.new_repo_name
+                                }
+                            },
+                        },
+                        "delete": {
+                            "min_age": "365d",
+                            "actions": {
+                                "delete": {"delete_searchable_snapshot": False}
+                            },
+                        },
+                    }
+                }
+            }
+            self.loggit.info("Creating ILM policy %s", policy_name)
+            self.loggit.debug("ILM policy body: %s", policy_body)
+            response = create_ilm_policy(
+                client=self.client, policy_name=policy_name, policy_body=policy_body
+            )
         self.loggit.info(
             "Setup complete. You now need to update ILM policies to use %s.",
             self.new_repo_name,

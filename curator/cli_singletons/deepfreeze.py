@@ -112,6 +112,17 @@ def deepfreeze():
     default="oneup",
     help="How to number (suffix) the rotating repositories",
 )
+@click.option(
+    "--create_sample_ilm_policy",
+    is_flag=True,
+    help="Create a sample ILM policy",
+)
+@click.option(
+    "--ilm_policy_name",
+    type=str,
+    default="deepfreeze-sample-policy",
+    help="Name of the sample ILM policy",
+)
 @click.pass_context
 def setup(
     ctx,
@@ -125,6 +136,8 @@ def setup(
     provider,
     rotate_by,
     style,
+    create_sample_ilm_policy,
+    ilm_policy_name,
 ):
     """
     Set up a cluster for deepfreeze and save the configuration for all future actions
@@ -141,6 +154,8 @@ def setup(
         "provider": provider,
         "rotate_by": rotate_by,
         "style": style,
+        "create_sample_ilm_policy": create_sample_ilm_policy,
+        "ilm_policy_name": ilm_policy_name,
     }
 
     action = CLIAction(
