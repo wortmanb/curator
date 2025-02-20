@@ -77,6 +77,7 @@ def do_rotate(
     :return: The Rotate object
     :rtype: Rotate
     """
+    rotate = None
     for _ in range(iterations):
         rotate = Rotate(
             client,
