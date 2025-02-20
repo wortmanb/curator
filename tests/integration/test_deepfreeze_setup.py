@@ -10,7 +10,6 @@ import warnings
 from curator.actions.deepfreeze import PROVIDERS, SETTINGS_ID, STATUS_INDEX, Setup
 from curator.exceptions import ActionError, RepositoryException
 from curator.s3client import s3_client_factory
-from tests.integration.deepfreeze_helpers import do_setup
 
 from . import DeepfreezeTestCase, random_suffix, testvars
 
@@ -27,7 +26,10 @@ class TestDeepfreezeSetup(DeepfreezeTestCase):
             )
 
             self.provider = provider
-            do_setup(self.client, provider)
+            if self.bucket_name == "":
+                self.bucket_name = f"{testvars.df_bucket_name}-{random_suffix()}"
+
+            self.do_setup()
             csi = self.client.cluster.state(metric=MET)[MET]["indices"]
 
             # Specific assertions
@@ -56,7 +58,7 @@ class TestDeepfreezeSetup(DeepfreezeTestCase):
             assert s.rotate_by == testvars.df_rotate_by
             assert s.style == testvars.df_style
             assert s.repo_name_prefix == testvars.df_repo_name
-            assert s.bucket_name_prefix == testvars.df_bucket_name
+            assert s.bucket_name_prefix == self.bucket_name
 
             # Clean up
             self.client.snapshot.delete_repository(
@@ -121,16 +123,15 @@ class TestDeepfreezeSetup(DeepfreezeTestCase):
                 "ignore", category=DeprecationWarning, module="botocore.auth"
             )
             self.provider = provider
+            if self.bucket_name == "":
+                self.bucket_name = f"{testvars.df_bucket_name}-{random_suffix()}"
             s3 = s3_client_factory(provider)
-            s3.create_bucket(testvars.df_bucket_name)
+            s3.create_bucket(self.bucket_name)
             time.sleep(INTERVAL)
             # This should raise an ActionError because the bucket already exists
             setup = self.do_setup(do_action=False, rotate_by="bucket")
             with self.assertRaises(ActionError):
                 setup.do_action()
-            # Clean up
-            self.client.indices.delete(index=STATUS_INDEX)
-            s3.delete_bucket(testvars.df_bucket_name)
 
     def test_setup_repo_exists(self):
         warnings.filterwarnings(
@@ -138,9 +139,10 @@ class TestDeepfreezeSetup(DeepfreezeTestCase):
         )
         for provider in PROVIDERS:
             self.provider = provider
+            if self.bucket_name == "":
+                self.bucket_name = f"{testvars.df_bucket_name}-{random_suffix()}"
             s3 = s3_client_factory(provider)
-            testvars.df_bucket_name = f"{testvars.df_bucket_name}-{random_suffix()}"
-            testvars.df_bucket_name_2 = f"{testvars.df_bucket_name_2}-{random_suffix()}"
+            self.df_bucket_name_2 = f"{testvars.df_bucket_name_2}-{random_suffix()}"
 
             # Pre-create the bucket and repo to simulate picking a repo that already \
             # exists. We use a different bucket name to avoid the bucket already exists
@@ -152,7 +154,7 @@ class TestDeepfreezeSetup(DeepfreezeTestCase):
                 body={
                     "type": "s3",
                     "settings": {
-                        "bucket": testvars.df_bucket_name_2,
+                        "bucket": self.df_bucket_name_2,
                         "base_path": testvars.df_base_path_2,
                         "storage_class": testvars.df_storage_class,
                     },
@@ -162,7 +164,7 @@ class TestDeepfreezeSetup(DeepfreezeTestCase):
             with self.assertRaises(RepositoryException):
                 setup = Setup(
                     self.client,
-                    bucket_name_prefix=testvars.df_bucket_name,
+                    bucket_name_prefix=self.bucket_name,
                     repo_name_prefix=testvars.df_repo_name,
                     base_path_prefix=testvars.df_base_path,
                     storage_class=testvars.df_storage_class,

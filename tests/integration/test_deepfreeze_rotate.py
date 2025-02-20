@@ -11,9 +11,9 @@ from curator.actions.deepfreeze import PROVIDERS
 from curator.actions.deepfreeze.rotate import Rotate
 from curator.actions.deepfreeze.utilities import get_unmounted_repos
 from curator.s3client import s3_client_factory
-from tests.integration.deepfreeze_helpers import do_setup
+from tests.integration import testvars
 
-from . import DeepfreezeTestCase, random_suffix, testvars
+from . import DeepfreezeTestCase, random_suffix
 
 HOST = os.environ.get("TEST_ES_SERVER", "http://127.0.0.1:9200")
 MET = "metadata"
@@ -24,9 +24,13 @@ class TestDeepfreezeRotate(DeepfreezeTestCase):
         warnings.filterwarnings(
             "ignore", category=DeprecationWarning, module="botocore.auth"
         )
+
         for provider in PROVIDERS:
             self.provider = provider
-            testvars.df_bucket_name = f"{testvars.df_bucket_name}-{random_suffix()}"
+            if self.bucket_name == "":
+                self.bucket_name = f"{testvars.df_bucket_name}-{random_suffix()}"
+
+            print(f"Testing {provider} with {testvars.df_bucket_name}")
             self.do_setup()
             rotate = Rotate(
                 self.client,
@@ -52,4 +56,4 @@ class TestDeepfreezeRotate(DeepfreezeTestCase):
 
             # Clean up
             s3 = s3_client_factory(provider)
-            s3.delete_bucket(testvars.df_bucket_name)
+            s3.delete_bucket(self.bucket_name)
