@@ -7,40 +7,26 @@ import os
 import time
 import warnings
 
-from curator.actions.deepfreeze import PROVIDERS, SETTINGS_ID, STATUS_INDEX, Setup
+from curator.actions.deepfreeze import PROVIDERS
 from curator.actions.deepfreeze.rotate import Rotate
 from curator.actions.deepfreeze.utilities import get_unmounted_repos
-from curator.exceptions import ActionError, RepositoryException
 from curator.s3client import s3_client_factory
+from tests.integration.deepfreeze_helpers import do_setup
 
 from . import CuratorTestCase, random_suffix, testvars
 
 HOST = os.environ.get("TEST_ES_SERVER", "http://127.0.0.1:9200")
 MET = "metadata"
-INTERVAL = 1  # Because we can't go too fast or cloud providers can't keep up.
 
 
-class TestCLISetup(CuratorTestCase):
+class TestDeepfreezeRotate(CuratorTestCase):
     def test_rotate_happy_path(self):
         warnings.filterwarnings(
             "ignore", category=DeprecationWarning, module="botocore.auth"
         )
         for provider in PROVIDERS:
-            s3 = s3_client_factory(provider)
             testvars.df_bucket_name = f"{testvars.df_bucket_name}-{random_suffix()}"
-
-            setup = Setup(
-                self.client,
-                bucket_name_prefix=testvars.df_bucket_name,
-                repo_name_prefix=testvars.df_repo_name,
-                base_path_prefix=testvars.df_base_path,
-                storage_class=testvars.df_storage_class,
-                rotate_by=testvars.df_rotate_by,
-                style=testvars.df_style,
-            )
-            setup.do_action()
-            time.sleep(INTERVAL)
-
+            do_setup(provider)
             rotate = Rotate(
                 self.client,
             )
@@ -64,4 +50,5 @@ class TestCLISetup(CuratorTestCase):
             assert len(unmounted) == 1
 
             # Clean up
+            s3 = s3_client_factory(provider)
             s3.delete_bucket(testvars.df_bucket_name)

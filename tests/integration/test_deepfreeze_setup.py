@@ -10,6 +10,7 @@ import warnings
 from curator.actions.deepfreeze import PROVIDERS, SETTINGS_ID, STATUS_INDEX, Setup
 from curator.exceptions import ActionError, RepositoryException
 from curator.s3client import s3_client_factory
+from tests.integration.deepfreeze_helpers import do_setup
 
 from . import CuratorTestCase, random_suffix, testvars
 
@@ -18,28 +19,10 @@ MET = "metadata"
 INTERVAL = 1  # Because we can't go too fast or cloud providers can't keep up.
 
 
-class TestCLISetup(CuratorTestCase):
+class TestDeepfreezeSetup(CuratorTestCase):
     def test_setup(self):
-        warnings.filterwarnings(
-            "ignore", category=DeprecationWarning, module="botocore.auth"
-        )
         for provider in PROVIDERS:
-            s3 = s3_client_factory(provider)
-            testvars.df_bucket_name = f"{testvars.df_bucket_name}-{random_suffix()}"
-
-            setup = Setup(
-                self.client,
-                bucket_name_prefix=testvars.df_bucket_name,
-                repo_name_prefix=testvars.df_repo_name,
-                base_path_prefix=testvars.df_base_path,
-                storage_class=testvars.df_storage_class,
-                rotate_by=testvars.df_rotate_by,
-                style=testvars.df_style,
-            )
-            setup.do_action()
-            # Don't ask me why this is necessary, but the test has a tendency to fail
-            # without it.
-            time.sleep(INTERVAL)
+            do_setup(self.client, provider)
             csi = self.client.cluster.state(metric=MET)[MET]["indices"]
 
             # Specific assertions
@@ -54,6 +37,7 @@ class TestCLISetup(CuratorTestCase):
                 name=f"{testvars.df_repo_name}-000001"
             )
             # Bucket should exist
+            s3 = s3_client_factory(provider)
             assert s3.bucket_exists(testvars.df_bucket_name)
             # We can't test the base path on AWS because it won't be created until the
             #  first object is written, but we can test the settings to see if it's correct
@@ -74,6 +58,7 @@ class TestCLISetup(CuratorTestCase):
                 name=f"{testvars.df_repo_name}-000001"
             )
             self.client.indices.delete(index=STATUS_INDEX)
+            s3 = s3_client_factory(provider)
             s3.delete_bucket(testvars.df_bucket_name)
 
     def test_setup_with_ilm(self):
@@ -81,24 +66,7 @@ class TestCLISetup(CuratorTestCase):
             "ignore", category=DeprecationWarning, module="botocore.auth"
         )
         for provider in PROVIDERS:
-            s3 = s3_client_factory(provider)
-            testvars.df_bucket_name = f"{testvars.df_bucket_name}-{random_suffix()}"
-
-            setup = Setup(
-                self.client,
-                bucket_name_prefix=testvars.df_bucket_name,
-                repo_name_prefix=testvars.df_repo_name,
-                base_path_prefix=testvars.df_base_path,
-                storage_class=testvars.df_storage_class,
-                rotate_by=testvars.df_rotate_by,
-                style=testvars.df_style,
-                create_sample_ilm_policy=True,
-                ilm_policy_name=testvars.df_ilm_policy,
-            )
-            setup.do_action()
-            # Don't ask me why this is necessary, but the test has a tendency to fail
-            # without it.
-            time.sleep(INTERVAL)
+            do_setup(self.client, provider)
             csi = self.client.cluster.state(metric=MET)[MET]["indices"]
 
             # Specific assertions
@@ -113,6 +81,7 @@ class TestCLISetup(CuratorTestCase):
                 name=f"{testvars.df_repo_name}-000001"
             )
             # Bucket should exist
+            s3 = s3_client_factory(provider)
             assert s3.bucket_exists(testvars.df_bucket_name)
             # ILM policy should exist
             assert self.client.ilm.get_lifecycle(name=testvars.df_ilm_policy)
@@ -135,33 +104,21 @@ class TestCLISetup(CuratorTestCase):
                 name=f"{testvars.df_repo_name}-000001"
             )
             self.client.indices.delete(index=STATUS_INDEX)
+            s3 = s3_client_factory(provider)
             s3.delete_bucket(testvars.df_bucket_name)
 
     def test_setup_bucket_exists(self):
-        warnings.filterwarnings(
-            "ignore", category=DeprecationWarning, module="botocore.auth"
-        )
-        s3 = s3_client_factory('aws')
-        testvars.df_bucket_name = f"{testvars.df_bucket_name}-{random_suffix()}"
-
-        # Pre-create the bucket to simlulate picking a bucket that already exists.
-        s3.create_bucket(testvars.df_bucket_name)
-        time.sleep(INTERVAL)
-
-        setup = Setup(
-            self.client,
-            bucket_name_prefix=testvars.df_bucket_name,
-            repo_name_prefix=testvars.df_repo_name,
-            base_path_prefix=testvars.df_base_path,
-            storage_class=testvars.df_storage_class,
-            rotate_by=testvars.df_rotate_by,
-            style=testvars.df_style,
-        )
-        with self.assertRaises(ActionError):
-            setup.do_action()
-        # Clean up
-        self.client.indices.delete(index=STATUS_INDEX)
-        s3.delete_bucket(testvars.df_bucket_name)
+        for provider in PROVIDERS:
+            s3 = s3_client_factory(provider)
+            s3.create_bucket(testvars.df_bucket_name)
+            time.sleep(INTERVAL)
+            # This should raise an ActionError because the bucket already exists
+            setup = do_setup(self.client, provider, do_action=False, rotate_by="bucket")
+            with self.assertRaises(ActionError):
+                setup.do_action()
+            # Clean up
+            self.client.indices.delete(index=STATUS_INDEX)
+            s3.delete_bucket(testvars.df_bucket_name)
 
     def test_setup_repo_exists(self):
         warnings.filterwarnings(
