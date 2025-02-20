@@ -140,7 +140,14 @@ def setup(
     ilm_policy_name,
 ):
     """
-    Set up a cluster for deepfreeze and save the configuration for all future actions
+    Set up a cluster for deepfreeze and save the configuration for all future actions.
+
+    Setup can be tuned by setting the following options to override defaults. Note that
+    --year and --month are only used if style=date. If style=oneup, then year and month
+    are ignored.
+
+    Depending on the S3 provider chosen, some options might not be available, or option
+    values may vary.
     """
     logging.debug("setup")
     manual_options = {
