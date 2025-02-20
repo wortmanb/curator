@@ -12,16 +12,17 @@ from curator.exceptions import ActionError, RepositoryException
 from curator.s3client import s3_client_factory
 from tests.integration.deepfreeze_helpers import do_setup
 
-from . import CuratorTestCase, random_suffix, testvars
+from . import DeepfreezeTestCase, random_suffix, testvars
 
 HOST = os.environ.get("TEST_ES_SERVER", "http://127.0.0.1:9200")
 MET = "metadata"
 INTERVAL = 1  # Because we can't go too fast or cloud providers can't keep up.
 
 
-class TestDeepfreezeSetup(CuratorTestCase):
+class TestDeepfreezeSetup(DeepfreezeTestCase):
     def test_setup(self):
         for provider in PROVIDERS:
+            self.provider = provider
             do_setup(self.client, provider)
             csi = self.client.cluster.state(metric=MET)[MET]["indices"]
 
@@ -66,7 +67,8 @@ class TestDeepfreezeSetup(CuratorTestCase):
             "ignore", category=DeprecationWarning, module="botocore.auth"
         )
         for provider in PROVIDERS:
-            do_setup(self.client, provider)
+            self.provider = provider
+            self.do_setup(create_ilm_policy=True)
             csi = self.client.cluster.state(metric=MET)[MET]["indices"]
 
             # Specific assertions
@@ -109,11 +111,12 @@ class TestDeepfreezeSetup(CuratorTestCase):
 
     def test_setup_bucket_exists(self):
         for provider in PROVIDERS:
+            self.provider = provider
             s3 = s3_client_factory(provider)
             s3.create_bucket(testvars.df_bucket_name)
             time.sleep(INTERVAL)
             # This should raise an ActionError because the bucket already exists
-            setup = do_setup(self.client, provider, do_action=False, rotate_by="bucket")
+            setup = self.do_setup(do_action=False, rotate_by="bucket")
             with self.assertRaises(ActionError):
                 setup.do_action()
             # Clean up
@@ -125,6 +128,7 @@ class TestDeepfreezeSetup(CuratorTestCase):
             "ignore", category=DeprecationWarning, module="botocore.auth"
         )
         for provider in PROVIDERS:
+            self.provider = provider
             s3 = s3_client_factory(provider)
             testvars.df_bucket_name = f"{testvars.df_bucket_name}-{random_suffix()}"
             testvars.df_bucket_name_2 = f"{testvars.df_bucket_name_2}-{random_suffix()}"

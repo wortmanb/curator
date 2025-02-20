@@ -10,6 +10,7 @@ import string
 import sys
 import tempfile
 import time
+import warnings
 from datetime import date, datetime, timedelta, timezone
 from subprocess import PIPE, Popen
 from unittest import SkipTest, TestCase
@@ -19,7 +20,10 @@ from elasticsearch8 import Elasticsearch
 from elasticsearch8.exceptions import ConnectionError as ESConnectionError
 
 from curator.actions.deepfreeze import SETTINGS_ID, STATUS_INDEX, Settings
+from curator.actions.deepfreeze.rotate import Rotate
+from curator.actions.deepfreeze.setup import Setup
 from curator.cli import cli
+from curator.s3client import s3_client_factory
 
 from . import testvars
 
@@ -33,6 +37,8 @@ DATEMAP = {
 }
 
 HOST = os.environ.get("TEST_ES_SERVER", "http://127.0.0.1:9200")
+
+INTERVAL = 1
 
 
 def random_directory():
@@ -296,42 +302,98 @@ class CuratorTestCase(TestCase):
             myargs.append(self.args["actionfile"])
             self.result = self.runner.invoke(cli, myargs)
 
-    def create_ilm_policy(self, name):
-        body = {
-            "phases": {
-                "hot": {
-                    "min_age": "0ms",
-                    "actions": {
-                        "rollover": {"max_age": "1d", "max_primary_shard_size": "40gb"},
-                        "set_priority": {"priority": 100},
-                    },
-                },
-                "cold": {
-                    "min_age": "1d",
-                    "actions": {
-                        "searchable_snapshot": {
-                            "snapshot_repository": "deepfreeze-000001",
-                            "force_merge_index": True,
-                        },
-                        "set_priority": {"priority": 0},
-                    },
-                },
-                "delete": {
-                    "min_age": "180d",
-                    "actions": {"delete": {"delete_searchable_snapshot": False}},
-                },
-                "frozen": {
-                    "min_age": "90d",
-                    "actions": {
-                        "searchable_snapshot": {
-                            "snapshot_repository": "deepfreeze-000001",
-                            "force_merge_index": True,
-                        }
-                    },
-                },
-            }
-        }
-        self.client.ilm.put_lifecycle(name=name, policy=body)
+
+class DeepfreezeTestCase(CuratorTestCase):
+    # TODO: Augment setup, tearDown methods to remove buckets
+    # TODO: Add helper methods from deepfreeze_helpers so they're part of the test case
+
+    def setUp(self):
+        return super().setUp()
+
+    def tearDown(self):
+        s3 = s3_client_factory(self.provider)
+        return super().tearDown()
+
+    def do_setup(
+        self, do_action=True, rotate_by: str = None, create_ilm_policy: bool = False
+    ) -> Setup:
+        """
+        Perform a default setup for deepfreeze
+
+        :param do_action: Whether to perform the setup action or not, defaults to True
+        :type do_action: bool, optional
+        :param rotate_by: Rotate by bucket or path within a bucket, defaults to `path`
+        :type rotate_by: str, optional
+
+        :return: The Setup object
+        :rtype: Setup
+        """
+        warnings.filterwarnings(
+            "ignore", category=DeprecationWarning, module="botocore.auth"
+        )
+        s3 = s3_client_factory(self.provider)
+        testvars.df_bucket_name = f"{testvars.df_bucket_name}-{random_suffix()}"
+
+        if rotate_by:
+            testvars.df_rotate_by = rotate_by
+
+        setup = Setup(
+            client,
+            bucket_name_prefix=testvars.df_bucket_name,
+            repo_name_prefix=testvars.df_repo_name,
+            base_path_prefix=testvars.df_base_path,
+            storage_class=testvars.df_storage_class,
+            rotate_by=testvars.df_rotate_by,
+            style=testvars.df_style,
+            create_sample_ilm_policy=create_ilm_policy,
+            ilm_policy_name=testvars.df_ilm_policy,
+        )
+        if do_action:
+            setup.do_action()
+            time.sleep(INTERVAL)
+        return setup
+
+    def do_rotate(self, iterations: int = 1, populate_index=False) -> Rotate:
+        """
+        Helper method to perform a number of rotations
+
+        :param client: The Elasticsearch client
+        :type client: Elasticsearch
+        :param populate_index: Whether to populate the index before rotating, defaults to False
+        :type populate_index: bool, optional
+        :param iterations: How many iterations to perform, defaults to 1
+        :type iterations: int, optional
+
+        :return: The Rotate object
+        :rtype: Rotate
+        """
+        rotate = None
+        for _ in range(iterations):
+            rotate = Rotate(
+                client,
+            )
+            if populate_index:
+                self._populate_index(client, testvars.test_index)
+            rotate.do_action()
+            time.sleep(INTERVAL)
+        return rotate
+
+    def _populate_index(self, index: str, doc_count: int = 1000) -> None:
+        """
+        Populate an index with a given number of documents
+
+        :param client: The Elasticsearch client
+        :type client: Elasticsearch
+        :param index: The index to populate
+        :type index: str
+        :param doc_count: The number of documents to create, defaults to 1000
+        :type doc_count: int, optional
+
+        :return: None
+        :rtype: None
+        """
+        for _ in range(doc_count):
+            client.index(index=index, body={"foo": "bar"})
 
     def delete_ilm_policy(self, name):
         try:
