@@ -157,15 +157,6 @@ class AwsS3Client(S3Client):
                 self.loggit.error(e)
                 raise ActionError(e)
 
-    def delete_bucket(self, bucket_name: str) -> None:
-        # TODO: Write a call to the S3 service to delete the named bucket
-        self.loggit.info(f"Deleting bucket: {bucket_name}")
-        try:
-            self.client.delete_bucket(Bucket=bucket_name)
-        except ClientError as e:
-            self.loggit.error(e)
-            raise ActionError(e)
-
     def thaw(
         self,
         bucket_name: str,
