@@ -313,14 +313,16 @@ class DeepfreezeTestCase(CuratorTestCase):
 
     def tearDown(self):
         s3 = s3_client_factory(self.provider)
+        buckets = s3.list_buckets(testvars.df_bucket_name)
+        for bucket in buckets:
+            # if bucket['Name'].startswith(testvars.df_bucket_name):
+            s3.delete_bucket(bucket_name=bucket)
         return super().tearDown()
 
     def do_setup(
         self, do_action=True, rotate_by: str = None, create_ilm_policy: bool = False
     ) -> Setup:
         s3 = s3_client_factory(self.provider)
-        if self.bucket_name == "":
-            self.bucket_name = f"{self.bucket_name}-{random_suffix()}"
 
         if rotate_by:
             testvars.df_rotate_by = rotate_by

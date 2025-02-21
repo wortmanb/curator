@@ -125,6 +125,15 @@ class S3Client:
         """
         raise NotImplementedError("Subclasses should implement this method")
 
+    def list_buckets(self, prefix: str = None) -> list[str]:
+        """
+        List all buckets.
+
+        Returns:
+            list[str]: A list of bucket names.
+        """
+        raise NotImplementedError("Subclasses should implement this method")
+
 
 class AwsS3Client(S3Client):
     """
@@ -144,9 +153,10 @@ class AwsS3Client(S3Client):
             self.client.create_bucket(Bucket=bucket_name)
         except ClientError as e:
             self.loggit.error(e)
-            raise ActionError(e)
+            raise ActionError(f"Error creating bucket {bucket_name}: {e}")
 
     def bucket_exists(self, bucket_name: str) -> bool:
+        self.loggit.info(f"Checking if bucket {bucket_name} exists")
         try:
             self.client.head_bucket(Bucket=bucket_name)
             return True
@@ -301,6 +311,27 @@ class AwsS3Client(S3Client):
         self.loggit.info(f"Putting object: {key} in bucket: {bucket_name}")
         try:
             self.client.put_object(Bucket=bucket_name, Key=key, Body=body)
+        except ClientError as e:
+            self.loggit.error(e)
+            raise ActionError(e)
+
+    def list_buckets(self, prefix: str = None) -> list[str]:
+        """
+        List all buckets.
+
+        Returns:
+            list[str]: A list of bucket names.
+        """
+        self.loggit.info("Listing buckets")
+        try:
+            response = self.client.list_buckets()
+            buckets = response.get("Buckets", [])
+            bucket_names = [bucket["Name"] for bucket in buckets]
+            if prefix:
+                bucket_names = [
+                    name for name in bucket_names if name.startswith(prefix)
+                ]
+            return bucket_names
         except ClientError as e:
             self.loggit.error(e)
             raise ActionError(e)
