@@ -26,3 +26,12 @@ for CONTAINER in $CONTAINERS; do
 done
 
 echo "S3 credentials have been set in all Elasticsearch containers."
+
+echo "Adding enterprise license"
+if [[ -f license.json ]]; then
+    curl -X PUT "http://localhost:9200/_license" \
+         -H "Content-Type: application/json" \
+         -d @license-release-stack-enterprise.json
+else
+    curl -X POST "http://localhost:9200/_license/start_trial?acknowledge=true"
+fi
