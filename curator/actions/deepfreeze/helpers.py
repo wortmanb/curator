@@ -3,6 +3,7 @@
 # pylint: disable=too-many-arguments,too-many-instance-attributes, raise-missing-from
 
 import json
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -122,6 +123,12 @@ class Repository:
         to_json() -> str:
             Convert the Repository object to a JSON string.
 
+        __lt__(other) -> bool:
+            Less than comparison based on the repository name.
+
+        persist(es: Elasticsearch) -> None:
+            Persist the repository to the status index.
+
     Example:
         repo = Repository({name="repo1", bucket="bucket1", base_path="path1", start=datetime.now(), end=datetime.now()})
         repo = Repository(name="deepfreeze-000032")
@@ -141,7 +148,13 @@ class Repository:
 
     def __init__(self, repo_hash=None, es: Elasticsearch = None, name=None) -> None:
         if name is not None:
-            repo_hash = es.get(index=STATUS_INDEX, id=name)["_source"]
+            if es is not None:
+                query = {"query": {"match": {"name": name}}}
+                result = es.search(index=STATUS_INDEX, body=query)
+                if result["hits"]["total"]["value"] > 0:
+                    repo_hash = result["hits"]["hits"][0]["_source"]
+                else:
+                    repo_hash = {"name": name}
         if repo_hash is not None:
             for key, value in repo_hash.items():
                 setattr(self, key, value)
@@ -193,6 +206,18 @@ class Repository:
             bool: True if this repository's name is less than the other repository's name, False otherwise.
         """
         return self.name < other.name
+
+    def persist(self, es: Elasticsearch) -> None:
+        """
+        Persist the repository to the status index.
+
+        Params:
+            es (Elasticsearch): The Elasticsearch client.
+
+        Returns:
+            None
+        """
+        es.index(index=STATUS_INDEX, id=self.name, body=self.to_dict())
 
 
 @dataclass

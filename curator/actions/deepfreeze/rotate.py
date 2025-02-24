@@ -61,7 +61,6 @@ class Rotate:
 
         self.settings = get_settings(client)
         self.loggit.debug("Settings: %s", str(self.settings))
-        print(f"Settings: {str(self.settings)}")
 
         self.client = client
         self.keep = int(keep)
@@ -132,7 +131,16 @@ class Rotate:
                 # ? Will this produce too many updates? Do I need to only update if one
                 # ? of the dates has changed?
                 if not dry_run:
-                    self.client.update(index=STATUS_INDEX, doc=repo.to_dict())
+                    if self.client.exists(index=STATUS_INDEX, id=repo.name):
+                        self.client.update(
+                            index=STATUS_INDEX,
+                            id=repo.name,
+                            body={"doc": repo.to_dict()},
+                        )
+                    else:
+                        self.client.index(
+                            index=STATUS_INDEX, id=repo.name, body=repo.to_dict()
+                        )
                 self.loggit.debug("Updated date range for %s", repo.name)
             else:
                 self.loggit.debug("No update; no indices found for %s", repo.name)
@@ -299,7 +307,9 @@ class Rotate:
         ensure_settings_index(self.client)
         self.loggit.debug("Saving settings")
         save_settings(self.client, self.settings)
-        # Create the new bucket and repo, but only if rotate_by is bucket.
+        # Go through mounted repos and make sure the date ranges are up-to-date
+        self.update_repo_date_range()
+        # Create the new bucket and repo, but only if rotate_by is bucket
         if self.settings.rotate_by == "bucket":
             self.s3.create_bucket(self.new_bucket_name)
         create_repo(
@@ -312,4 +322,3 @@ class Rotate:
         )
         self.update_ilm_policies()
         self.unmount_oldest_repos()
-        self.update_repo_date_range()

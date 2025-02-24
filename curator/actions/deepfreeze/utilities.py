@@ -35,7 +35,6 @@ def push_to_glacier(s3: S3Client, repo: Repository) -> None:
 
     # Check if objects were found
     if "Contents" not in response:
-        print(f"No objects found in prefix: {repo.base_path}")
         return
 
     # Loop through each object and initiate restore for Glacier objects
@@ -70,7 +69,6 @@ def check_restore_status(s3: S3Client, repo: Repository) -> bool:
 
     # Check if objects were found
     if "Contents" not in response:
-        print(f"No objects found in prefix: {repo.base_path}")
         return
 
     # Loop through each object and initiate restore for Glacier objects
@@ -83,7 +81,6 @@ def check_restore_status(s3: S3Client, repo: Repository) -> bool:
 
             if restore_status:
                 if 'ongoing-request="true"' in restore_status:
-                    print(f"Object {obj['Key']} is still being restored.")
                     return False
             else:
                 raise Exception(
@@ -91,7 +88,6 @@ def check_restore_status(s3: S3Client, repo: Repository) -> bool:
                 )
 
         except Exception as e:
-            print(f"Error checking restore status: {e}")
             return None
     return True
 
@@ -126,7 +122,6 @@ def thaw_repo(
 
     # Check if objects were found
     if "Contents" not in response:
-        print(f"No objects found in prefix: {base_path}")
         return
 
     # Loop through each object and initiate restore for Glacier objects
@@ -342,9 +337,6 @@ def create_repo(
         )
     except Exception as e:
         loggit.error(e)
-        print(
-            f"[magenta]Error creating repository. Ensure AWS credentials have been added to keystore:[/magenta] {e}"
-        )
         raise ActionError(e)
     #
     # TODO: Gather the reply and parse it to make sure this succeeded
@@ -529,9 +521,6 @@ def unmount_repo(client: Elasticsearch, repo: str) -> Repository:
         client.snapshot.delete_repository(name=repo)
     except Exception as e:
         loggit.error(e)
-        print(
-            f"[magenta]Error deleting repository [bold white]{repo}[/bold white]:[/magenta] {e}"
-        )
         raise ActionError(e)
     # Don't update the records until the repo has been succesfully removed.
     client.index(index=STATUS_INDEX, document=repodoc.to_dict())
@@ -622,7 +611,6 @@ def check_is_s3_thawed(s3: S3Client, thawset: ThawSet) -> bool:
         logging.info("Checking status of %s", repo)
         if not check_restore_status(s3, repo):
             logging.warning("Restore not complete for %s", repo)
-            print("Restore not complete for %s", repo)
             return False
     return True
 
@@ -652,7 +640,4 @@ def create_ilm_policy(
         response = client.ilm.put_lifecycle(name=policy_name, body=policy_body)
     except Exception as e:
         loggit.error(e)
-        print(
-            f"[magenta]Error creating ILM policy. Ensure AWS credentials have been added to keystore:[/magenta] {e}"
-        )
         raise ActionError(e)
