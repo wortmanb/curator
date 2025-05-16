@@ -9,6 +9,8 @@ deepfreeze.
 
 import abc
 import logging
+import os
+from typing import Dict, List, Optional
 
 import boto3
 from botocore.exceptions import ClientError
@@ -163,6 +165,515 @@ class S3Client(metaclass=abc.ABCMeta):
             None
         """
         return
+
+
+class AzureS3Client(S3Client):
+    """
+    An S3 client object for use with Azure Blob Storage via S3-compatible API.
+    """
+
+    def __init__(self) -> None:
+        """
+        Initialize the Azure S3 client using environment variables for credentials.
+        """
+        self.logger = logging.getLogger("Azure S3 Client")
+        try:
+            # Azure Blob Storage S3-compatible endpoint and credentials
+            endpoint_url = os.getenv("AZURE_S3_ENDPOINT_URL")
+            access_key = os.getenv("AZURE_ACCESS_KEY")
+            secret_key = os.getenv("AZURE_SECRET_KEY")
+
+            if not all([endpoint_url, access_key, secret_key]):
+                raise ValueError(
+                    "Missing required environment variables for Azure S3 client"
+                )
+
+            # Initialize boto3 client for Azure Blob Storage
+            self.client = boto3.client(
+                's3',
+                endpoint_url=endpoint_url,
+                aws_access_key_id=access_key,
+                aws_secret_access_key=secret_key,
+            )
+            self.logger.info("Azure S3 client initialized successfully")
+        except Exception as e:
+            self.logger.error(f"Failed to initialize Azure S3 client: {str(e)}")
+            raise
+
+    def create_bucket(self, bucket_name: str) -> None:
+        """
+        Create a bucket (container) in Azure Blob Storage.
+
+        Args:
+            bucket_name (str): Name of the bucket to create
+        """
+        try:
+            self.client.create_bucket(Bucket=bucket_name)
+            self.logger.info(f"Bucket {bucket_name} created successfully")
+        except ClientError as e:
+            self.logger.error(f"Failed to create bucket {bucket_name}: {str(e)}")
+            raise
+
+    def bucket_exists(self, bucket_name: str) -> bool:
+        """
+        Check if a bucket exists in Azure Blob Storage.
+
+        Args:
+            bucket_name (str): Name of the bucket to check
+
+        Returns:
+            bool: True if bucket exists, False otherwise
+        """
+        try:
+            self.client.head_bucket(Bucket=bucket_name)
+            self.logger.debug(f"Bucket {bucket_name} exists")
+            return True
+        except ClientError as e:
+            if e.response['Error']['Code'] == '404':
+                self.logger.debug(f"Bucket {bucket_name} does not exist")
+                return False
+            self.logger.error(f"Error checking bucket {bucket_name}: {str(e)}")
+            raise
+
+    def thaw(
+        self,
+        bucket_name: str,
+        base_path: str,
+        object_keys: List[str],
+        restore_days: int = 7,
+        retrieval_tier: str = "Standard",
+    ) -> None:
+        """
+        Restore objects from archive (not directly supported in Azure).
+
+        Args:
+            bucket_name (str): Name of the bucket
+            base_path (str): Base path for objects
+            object_keys (List[str]): List of object keys to restore
+            restore_days (int): Number of days to keep restored objects
+            retrieval_tier (str): Retrieval tier (Standard, Expedited, etc.)
+
+        Note: Azure Blob Storage doesn't have a direct equivalent to S3 Glacier.
+              This method logs a warning and skips restoration.
+        """
+        self.logger.warning(
+            "Azure Blob Storage does not support Glacier-like storage classes or thaw operations. "
+            "Objects are assumed to be in hot tier by default."
+        )
+        # If Azure introduces archive tiers in the future, this could be updated
+        for key in object_keys:
+            full_key = f"{base_path}/{key}" if base_path else key
+            self.logger.info(f"Skipping thaw for {full_key} (not applicable in Azure)")
+
+    def refreeze(
+        self, bucket_name: str, path: str, storage_class: str = "GLACIER"
+    ) -> None:
+        """
+        Move an object to a colder storage class (not directly supported in Azure).
+
+        Args:
+            bucket_name (str): Name of the bucket
+            path (str): Path to the object
+            storage_class (str): Target storage class (e.g., GLACIER)
+
+        Note: Azure Blob Storage supports hot, cool, and archive tiers, but not via S3 API.
+              This method logs a warning and skips the operation.
+        """
+        self.logger.warning(
+            "Azure Blob Storage does not support Glacier-like storage classes via S3 API. "
+            "Use Azure-native APIs to change to cool or archive tiers."
+        )
+        self.logger.info(
+            f"Skipping refreeze for {path} to {storage_class} (not applicable in Azure)"
+        )
+
+    def list_objects(self, bucket_name: str, prefix: str) -> List[str]:
+        """
+        List objects in a bucket with a given prefix.
+
+        Args:
+            bucket_name (str): Name of the bucket
+            prefix (str): Prefix to filter objects
+
+        Returns:
+            List[str]: List of object keys
+        """
+        try:
+            response = self.client.list_objects_v2(Bucket=bucket_name, Prefix=prefix)
+            objects = [obj['Key'] for obj in response.get('Contents', [])]
+            self.logger.debug(
+                f"Listed {len(objects)} objects in {bucket_name} with prefix {prefix}"
+            )
+            return objects
+        except ClientError as e:
+            self.logger.error(f"Failed to list objects in {bucket_name}: {str(e)}")
+            raise
+
+    def delete_bucket(self, bucket_name: str) -> None:
+        """
+        Delete a bucket in Azure Blob Storage.
+
+        Args:
+            bucket_name (str): Name of the bucket to delete
+        """
+        try:
+            # Azure requires buckets to be empty before deletion
+            objects = self.list_objects(bucket_name, "")
+            if objects:
+                self.logger.warning(
+                    f"Bucket {bucket_name} is not empty; deleting objects first"
+                )
+                for obj in objects:
+                    self.client.delete_object(Bucket=bucket_name, Key=obj)
+            self.client.delete_bucket(Bucket=bucket_name)
+            self.logger.info(f"Bucket {bucket_name} deleted successfully")
+        except ClientError as e:
+            self.logger.error(f"Failed to delete bucket {bucket_name}: {str(e)}")
+            raise
+
+    def put_object(self, bucket_name: str, key: str, body: str = "") -> None:
+        """
+        Upload an object to a bucket.
+
+        Args:
+            bucket_name (str): Name of the bucket
+            key (str): Object key
+            body (str): Object content as a string
+        """
+        try:
+            self.client.put_object(
+                Bucket=bucket_name, Key=key, Body=body.encode('utf-8')
+            )
+            self.logger.info(f"Object {key} uploaded to {bucket_name}")
+        except ClientError as e:
+            self.logger.error(
+                f"Failed to upload object {key} to {bucket_name}: {str(e)}"
+            )
+            raise
+
+    def list_buckets(self, prefix: Optional[str] = None) -> List[str]:
+        """
+        List all buckets, optionally filtering by prefix.
+
+        Args:
+            prefix (Optional[str]): Prefix to filter bucket names
+
+        Returns:
+            List[str]: List of bucket names
+        """
+        try:
+            response = self.client.list_buckets()
+            buckets = [bucket['Name'] for bucket in response['Buckets']]
+            if prefix:
+                buckets = [b for b in buckets if b.startswith(prefix)]
+            self.logger.debug(
+                f"Listed {len(buckets)} buckets with prefix {prefix or 'none'}"
+            )
+            return buckets
+        except ClientError as e:
+            self.logger.error(f"Failed to list buckets: {str(e)}")
+            raise
+
+    def copy_object(
+        self,
+        Bucket: str,
+        Key: str,
+        CopySource: Dict[str, str],
+        StorageClass: str = "GLACIER",
+    ) -> None:
+        """
+        Copy an object within or across buckets.
+
+        Args:
+            Bucket (str): Destination bucket
+            Key (str): Destination object key
+            CopySource (Dict[str, str]): Source bucket and key (e.g., {'Bucket': 'source', 'Key': 'key'})
+            StorageClass (str): Storage class for the copied object
+
+        Note: Azure Blob Storage doesn't support Glacier via S3 API; StorageClass is ignored.
+        """
+        try:
+            self.client.copy_object(Bucket=Bucket, Key=Key, CopySource=CopySource)
+            self.logger.info(f"Copied object from {CopySource} to {Bucket}/{Key}")
+            if StorageClass == "GLACIER":
+                self.logger.warning(
+                    "GLACIER storage class not supported in Azure; using default tier"
+                )
+        except ClientError as e:
+            self.logger.error(f"Failed to copy object to {Bucket}/{Key}: {str(e)}")
+            raise
+
+
+class GCPS3Client(S3Client):
+    """
+    An S3 client object for use with Google Cloud Storage via S3-compatible API.
+    """
+
+    def __init__(self) -> None:
+        """
+        Initialize the GCP S3 client using environment variables for credentials.
+        """
+        self.logger = logging.getLogger("GCP S3 Client")
+        try:
+            # GCP S3-compatible endpoint and credentials
+            endpoint_url = os.getenv(
+                "GCP_S3_ENDPOINT_URL", "https://storage.googleapis.com"
+            )
+            access_key = os.getenv("GCP_ACCESS_KEY")
+            secret_key = os.getenv("GCP_SECRET_KEY")
+
+            if not all([access_key, secret_key]):
+                raise ValueError(
+                    "Missing required environment variables for GCP S3 client"
+                )
+
+            # Initialize boto3 client for GCS
+            self.client = boto3.client(
+                's3',
+                endpoint_url=endpoint_url,
+                aws_access_key_id=access_key,
+                aws_secret_access_key=secret_key,
+            )
+            self.logger.info("GCP S3 client initialized successfully")
+        except Exception as e:
+            self.logger.error(f"Failed to initialize GCP S3 client: {str(e)}")
+            raise
+
+    def create_bucket(self, bucket_name: str) -> None:
+        """
+        Create a bucket in Google Cloud Storage.
+
+        Args:
+            bucket_name (str): Name of the bucket to create
+        """
+        try:
+            self.client.create_bucket(Bucket=bucket_name)
+            self.logger.info(f"Bucket {bucket_name} created successfully")
+        except ClientError as e:
+            self.logger.error(f"Failed to create bucket {bucket_name}: {str(e)}")
+            raise
+
+    def bucket_exists(self, bucket_name: str) -> bool:
+        """
+        Check if a bucket exists in Google Cloud Storage.
+
+        Args:
+            bucket_name (str): Name of the bucket to check
+
+        Returns:
+            bool: True if bucket exists, False otherwise
+        """
+        try:
+            self.client.head_bucket(Bucket=bucket_name)
+            self.logger.debug(f"Bucket {bucket_name} exists")
+            return True
+        except ClientError as e:
+            if e.response['Error']['Code'] == '404':
+                self.logger.debug(f"Bucket {bucket_name} does not exist")
+                return False
+            self.logger.error(f"Error checking bucket {bucket_name}: {str(e)}")
+            raise
+
+    def thaw(
+        self,
+        bucket_name: str,
+        base_path: str,
+        object_keys: List[str],
+        restore_days: int = 7,
+        retrieval_tier: str = "Standard",
+    ) -> None:
+        """
+        Restore objects from ARCHIVE storage class in GCS.
+
+        Args:
+            bucket_name (str): Name of the bucket
+            base_path (str): Base path for objects
+            object_keys (List[str]): List of object keys to restore
+            restore_days (int): Number of days to keep restored objects
+            retrieval_tier (str): Retrieval tier (Standard, Bulk)
+        """
+        try:
+            for key in object_keys:
+                full_key = f"{base_path}/{key}" if base_path else key
+                # Check if object is in ARCHIVE and needs restoration
+                response = self.client.head_object(Bucket=bucket_name, Key=full_key)
+                storage_class = response.get('StorageClass', 'STANDARD')
+                if storage_class == 'ARCHIVE':
+                    self.client.restore_object(
+                        Bucket=bucket_name,
+                        Key=full_key,
+                        RestoreRequest={
+                            'Days': restore_days,
+                            'GlacierJobParameters': {
+                                'Tier': (
+                                    retrieval_tier
+                                    if retrieval_tier in ['Standard', 'Bulk']
+                                    else 'Standard'
+                                )
+                            },
+                        },
+                    )
+                    self.logger.info(
+                        f"Initiated restore for {full_key} for {restore_days} days"
+                    )
+                else:
+                    self.logger.info(
+                        f"Object {full_key} is not in ARCHIVE; no restore needed"
+                    )
+        except ClientError as e:
+            self.logger.error(f"Failed to restore objects in {bucket_name}: {str(e)}")
+            raise
+
+    def refreeze(
+        self, bucket_name: str, path: str, storage_class: str = "ARCHIVE"
+    ) -> None:
+        """
+        Move an object to ARCHIVE storage class in GCS.
+
+        Args:
+            bucket_name (str): Name of the bucket
+            path (str): Path to the object
+            storage_class (str): Target storage class (e.g., ARCHIVE)
+        """
+        try:
+            # Copy object to itself with new storage class
+            copy_source = {'Bucket': bucket_name, 'Key': path}
+            self.client.copy_object(
+                Bucket=bucket_name,
+                Key=path,
+                CopySource=copy_source,
+                StorageClass=(
+                    storage_class
+                    if storage_class in ['STANDARD', 'NEARLINE', 'COLDLINE', 'ARCHIVE']
+                    else 'ARCHIVE'
+                ),
+                MetadataDirective='COPY',
+            )
+            self.logger.info(f"Object {path} moved to {storage_class} storage class")
+        except ClientError as e:
+            self.logger.error(f"Failed to refreeze {path} to {storage_class}: {str(e)}")
+            raise
+
+    def list_objects(self, bucket_name: str, prefix: str) -> List[str]:
+        """
+        List objects in a bucket with a given prefix.
+
+        Args:
+            bucket_name (str): Name of the bucket
+            prefix (str): Prefix to filter objects
+
+        Returns:
+            List[str]: List of object keys
+        """
+        try:
+            response = self.client.list_objects_v2(Bucket=bucket_name, Prefix=prefix)
+            objects = [obj['Key'] for obj in response.get('Contents', [])]
+            self.logger.debug(
+                f"Listed {len(objects)} objects in {bucket_name} with prefix {prefix}"
+            )
+            return objects
+        except ClientError as e:
+            self.logger.error(f"Failed to list objects in {bucket_name}: {str(e)}")
+            raise
+
+    def delete_bucket(self, bucket_name: str) -> None:
+        """
+        Delete a bucket in Google Cloud Storage.
+
+        Args:
+            bucket_name (str): Name of the bucket to delete
+        """
+        try:
+            # GCS requires buckets to be empty before deletion
+            objects = self.list_objects(bucket_name, "")
+            if objects:
+                self.logger.warning(
+                    f"Bucket {bucket_name} is not empty; deleting objects first"
+                )
+                for obj in objects:
+                    self.client.delete_object(Bucket=bucket_name, Key=obj)
+            self.client.delete_bucket(Bucket=bucket_name)
+            self.logger.info(f"Bucket {bucket_name} deleted successfully")
+        except ClientError as e:
+            self.logger.error(f"Failed to delete bucket {bucket_name}: {str(e)}")
+            raise
+
+    def put_object(self, bucket_name: str, key: str, body: str = "") -> None:
+        """
+        Upload an object to a bucket.
+
+        Args:
+            bucket_name (str): Name of the bucket
+            key (str): Object key
+            body (str): Object content as a string
+        """
+        try:
+            self.client.put_object(
+                Bucket=bucket_name, Key=key, Body=body.encode('utf-8')
+            )
+            self.logger.info(f"Object {key} uploaded to {bucket_name}")
+        except ClientError as e:
+            self.logger.error(
+                f"Failed to upload object {key} to {bucket_name}: {str(e)}"
+            )
+            raise
+
+    def list_buckets(self, prefix: Optional[str] = None) -> List[str]:
+        """
+        List all buckets, optionally filtering by prefix.
+
+        Args:
+            prefix (Optional[str]): Prefix to filter bucket names
+
+        Returns:
+            List[str]: List of bucket names
+        """
+        try:
+            response = self.client.list_buckets()
+            buckets = [bucket['Name'] for bucket in response['Buckets']]
+            if prefix:
+                buckets = [b for b in buckets if b.startswith(prefix)]
+            self.logger.debug(
+                f"Listed {len(buckets)} buckets with prefix {prefix or 'none'}"
+            )
+            return buckets
+        except ClientError as e:
+            self.logger.error(f"Failed to list buckets: {str(e)}")
+            raise
+
+    def copy_object(
+        self,
+        Bucket: str,
+        Key: str,
+        CopySource: Dict[str, str],
+        StorageClass: str = "ARCHIVE",
+    ) -> None:
+        """
+        Copy an object within or across buckets.
+
+        Args:
+            Bucket (str): Destination bucket
+            Key (str): Destination object key
+            CopySource (Dict[str, str]): Source bucket and key (e.g., {'Bucket': 'source', 'Key': 'key'})
+            StorageClass (str): Storage class for the copied object (e.g., ARCHIVE)
+        """
+        try:
+            self.client.copy_object(
+                Bucket=Bucket,
+                Key=Key,
+                CopySource=CopySource,
+                StorageClass=(
+                    StorageClass
+                    if StorageClass in ['STANDARD', 'NEARLINE', 'COLDLINE', 'ARCHIVE']
+                    else 'STANDARD'
+                ),
+            )
+            self.logger.info(
+                f"Copied object from {CopySource} to {Bucket}/{Key} with storage class {StorageClass}"
+            )
+        except ClientError as e:
+            self.logger.error(f"Failed to copy object to {Bucket}/{Key}: {str(e)}")
+            raise
 
 
 class AwsS3Client(S3Client):
