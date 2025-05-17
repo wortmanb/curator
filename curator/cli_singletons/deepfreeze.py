@@ -98,12 +98,13 @@ def deepfreeze():
     type=click.Choice(
         [
             "aws",
-            # "gcp",
-            # "azure",
+            "gcp",
+            "azure",
         ]
     ),
     default="aws",
-    help="What provider to use (AWS only for now)",
+    show_default=True,
+    help="Which cloud provider to use",
 )
 @click.option(
     "-t",
