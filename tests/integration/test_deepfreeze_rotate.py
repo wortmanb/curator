@@ -157,8 +157,8 @@ class TestDeepfreezeRotate(DeepfreezeTestCase):
             if self.bucket_name == "":
                 self.bucket_name = f"{testvars.df_bucket_name}-{random_suffix()}"
 
-            setup = self.do_setup(create_ilm_policy=True)
-            prefix = setup.settings.repo_name_prefix
+            self.do_setup(create_ilm_policy=True)
+            # prefix = setup.settings.repo_name_prefix
             csi = self.client.cluster.state(metric=MET)[MET]["indices"]
 
             # Specific assertions
@@ -175,7 +175,7 @@ class TestDeepfreezeRotate(DeepfreezeTestCase):
             assert STATUS_INDEX not in csi
 
             with self.assertRaises(MissingIndexError):
-                rotate = self.do_rotate(populate_index=True)
+                self.do_rotate(populate_index=True)
 
     def test_missing_repo(self):
         warnings.filterwarnings(
@@ -187,8 +187,8 @@ class TestDeepfreezeRotate(DeepfreezeTestCase):
             if self.bucket_name == "":
                 self.bucket_name = f"{testvars.df_bucket_name}-{random_suffix()}"
 
-            setup = self.do_setup(create_ilm_policy=True)
-            prefix = setup.settings.repo_name_prefix
+            self.do_setup(create_ilm_policy=True)
+            # prefix = setup.settings.repo_name_prefix
             csi = self.client.cluster.state(metric=MET)[MET]["indices"]
 
             # Specific assertions
@@ -226,7 +226,7 @@ class TestDeepfreezeRotate(DeepfreezeTestCase):
                 self.bucket_name = f"{testvars.df_bucket_name}-{random_suffix()}"
 
             setup = self.do_setup(create_ilm_policy=True)
-            prefix = setup.settings.repo_name_prefix
+            # prefix = setup.settings.repo_name_prefix
             csi = self.client.cluster.state(metric=MET)[MET]["indices"]
 
             # Specific assertions
