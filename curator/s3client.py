@@ -928,10 +928,8 @@ def s3_client_factory(provider: str) -> S3Client:
     if provider == "aws":
         return AwsS3Client()
     elif provider == "gcp":
-        # Placeholder for GCP S3Client implementation
-        raise NotImplementedError("GCP S3Client is not implemented yet")
+        return GCPS3Client()
     elif provider == "azure":
-        # Placeholder for Azure S3Client implementation
-        raise NotImplementedError("Azure S3Client is not implemented yet")
+        return AzureS3Client()
     else:
         raise ValueError(f"Unsupported provider: {provider}")
