@@ -3,7 +3,6 @@ from unittest.mock import patch
 
 import boto3
 import pytest
-from botocore.exceptions import ClientError
 from botocore.stub import Stubber
 
 from curator.exceptions import ActionError
@@ -108,7 +107,6 @@ class TestAwsS3Client:
         """Test creating a bucket successfully."""
         client, stubber = aws_s3_client
         # Stub head_bucket to indicate the bucket does not exist
-        error_response = {'Error': {'Code': '404', 'Message': 'Not Found'}}
         stubber.add_client_error(
             'head_bucket', service_error_code='404', service_message='Not Found'
         )
@@ -136,7 +134,6 @@ class TestAwsS3Client:
     def test_bucket_exists_false(self, aws_s3_client):
         """Test bucket_exists returns False for non-existing bucket."""
         client, stubber = aws_s3_client
-        error_response = {'Error': {'Code': '404', 'Message': 'Not Found'}}
         stubber.add_client_error(
             'head_bucket', service_error_code='404', service_message='Not Found'
         )
