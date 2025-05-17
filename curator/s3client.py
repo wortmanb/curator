@@ -52,7 +52,7 @@ class S3Client(metaclass=abc.ABCMeta):
         :return: Existence state of named bucket
         :rtype: bool
         """
-        return
+        pass
 
     @abc.abstractmethod
     def thaw(
@@ -105,7 +105,7 @@ class S3Client(metaclass=abc.ABCMeta):
         Returns:
             list[str]: A list of object keys.
         """
-        return
+        pass
 
     @abc.abstractmethod
     def delete_bucket(self, bucket_name: str) -> None:
@@ -136,21 +136,22 @@ class S3Client(metaclass=abc.ABCMeta):
         return
 
     @abc.abstractmethod
-    def list_buckets(self, prefix: str = None) -> list[str]:
+    def list_buckets(self, prefix: Optional[str]) -> list[str]:
         """
         List all buckets.
 
         Returns:
             list[str]: A list of bucket names.
         """
-        return
+        pass
 
     @abc.abstractmethod
     def copy_object(
-        Bucket: str,
-        Key: str,
-        CopySource: dict[str, str],
-        StorageClass: str,
+        self,
+        bucket: str,
+        key: str,
+        copy_source: dict[str, str],
+        storage_class: str,
     ) -> None:
         """
         Copy an object from one bucket to another.
@@ -376,10 +377,10 @@ class AzureS3Client(S3Client):
 
     def copy_object(
         self,
-        Bucket: str,
-        Key: str,
-        CopySource: Dict[str, str],
-        StorageClass: str = "GLACIER",
+        bucket: str,
+        key: str,
+        copy_source: Dict[str, str],
+        storage_class: str = "GLACIER",
     ) -> None:
         """
         Copy an object within or across buckets.
@@ -393,14 +394,14 @@ class AzureS3Client(S3Client):
         Note: Azure Blob Storage doesn't support Glacier via S3 API; StorageClass is ignored.
         """
         try:
-            self.client.copy_object(Bucket=Bucket, Key=Key, CopySource=CopySource)
-            self.logger.info(f"Copied object from {CopySource} to {Bucket}/{Key}")
-            if StorageClass == "GLACIER":
+            self.client.copy_object(Bucket=bucket, Key=key, CopySource=copy_source)
+            self.logger.info(f"Copied object from {copy_source} to {bucket}/{key}")
+            if storage_class == "GLACIER":
                 self.logger.warning(
                     "GLACIER storage class not supported in Azure; using default tier"
                 )
         except ClientError as e:
-            self.logger.error(f"Failed to copy object to {Bucket}/{Key}: {str(e)}")
+            self.logger.error(f"Failed to copy object to {bucket}/{key}: {str(e)}")
             raise
 
 
@@ -643,10 +644,10 @@ class GCPS3Client(S3Client):
 
     def copy_object(
         self,
-        Bucket: str,
-        Key: str,
-        CopySource: Dict[str, str],
-        StorageClass: str = "ARCHIVE",
+        bucket: str,
+        key: str,
+        copy_source: Dict[str, str],
+        storage_class: str = "ARCHIVE",
     ) -> None:
         """
         Copy an object within or across buckets.
@@ -659,20 +660,20 @@ class GCPS3Client(S3Client):
         """
         try:
             self.client.copy_object(
-                Bucket=Bucket,
-                Key=Key,
-                CopySource=CopySource,
+                Bucket=bucket,
+                Key=key,
+                CopySource=copy_source,
                 StorageClass=(
-                    StorageClass
-                    if StorageClass in ['STANDARD', 'NEARLINE', 'COLDLINE', 'ARCHIVE']
+                    storage_class
+                    if storage_class in ['STANDARD', 'NEARLINE', 'COLDLINE', 'ARCHIVE']
                     else 'STANDARD'
                 ),
             )
             self.logger.info(
-                f"Copied object from {CopySource} to {Bucket}/{Key} with storage class {StorageClass}"
+                f"Copied object from {copy_source} to {bucket}/{key} with storage class {storage_class}"
             )
         except ClientError as e:
-            self.logger.error(f"Failed to copy object to {Bucket}/{Key}: {str(e)}")
+            self.logger.error(f"Failed to copy object to {bucket}/{key}: {str(e)}")
             raise
 
 
@@ -855,7 +856,7 @@ class AwsS3Client(S3Client):
             self.loggit.error(e)
             raise ActionError(e)
 
-    def list_buckets(self, prefix: str = None) -> list[str]:
+    def list_buckets(self, prefix: Optional[str]) -> list[str]:
         """
         List all buckets.
 
@@ -878,10 +879,10 @@ class AwsS3Client(S3Client):
 
     def copy_object(
         self,
-        Bucket: str,
-        Key: str,
-        CopySource: dict[str, str],
-        StorageClass: str = "GLACIER",
+        bucket: str,
+        key: str,
+        copy_source: dict[str, str],
+        storage_class: str = "GLACIER",
     ) -> None:
         """
         Copy an object from one bucket to another.
@@ -895,13 +896,13 @@ class AwsS3Client(S3Client):
         Returns:
             None
         """
-        self.loggit.info(f"Copying object {Key} to bucket {Bucket}")
+        self.loggit.info(f"Copying object {key} to bucket {bucket}")
         try:
             self.client.copy_object(
-                Bucket=Bucket,
-                CopySource=CopySource,
-                Key=Key,
-                StorageClass=StorageClass,
+                Bucket=bucket,
+                CopySource=copy_source,
+                Key=key,
+                StorageClass=storage_class,
             )
         except ClientError as e:
             self.loggit.error(e)
