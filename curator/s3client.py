@@ -10,9 +10,10 @@ deepfreeze.
 import abc
 import logging
 import os
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 import boto3
+from botocore.client import BaseClient
 from botocore.exceptions import ClientError
 
 from curator.exceptions import ActionError
@@ -94,7 +95,9 @@ class S3Client(metaclass=abc.ABCMeta):
         return
 
     @abc.abstractmethod
-    def list_objects(self, bucket_name: str, prefix: str) -> list[str]:
+    def list_objects(
+        self, bucket_name: str, prefix: str
+    ) -> Union[list[str], list[dict]]:
         """
         List objects in a bucket with a given prefix.
 
@@ -103,7 +106,7 @@ class S3Client(metaclass=abc.ABCMeta):
             prefix (str): The prefix to use when listing objects.
 
         Returns:
-            list[str]: A list of object keys.
+            Union[list[str], list[dict]]: A list of object keys or object metadata dictionaries.
         """
         pass
 
@@ -166,6 +169,16 @@ class S3Client(metaclass=abc.ABCMeta):
             None
         """
         return
+
+    @abc.abstractmethod
+    def get_client(self) -> BaseClient:
+        """
+        Get the S3 client.
+
+        Returns:
+            boto3.client: The S3 client.
+        """
+        pass
 
 
 class AzureS3Client(S3Client):
@@ -403,6 +416,15 @@ class AzureS3Client(S3Client):
         except ClientError as e:
             self.logger.error(f"Failed to copy object to {bucket}/{key}: {str(e)}")
             raise
+
+    def get_client(self) -> BaseClient:
+        """
+        Return the underlying boto3 S3 client.
+
+        Returns:
+            BaseClient: The boto3 S3 client instance.
+        """
+        return self.client
 
 
 class GCPS3Client(S3Client):
@@ -676,6 +698,15 @@ class GCPS3Client(S3Client):
             self.logger.error(f"Failed to copy object to {bucket}/{key}: {str(e)}")
             raise
 
+    def get_client(self) -> BaseClient:
+        """
+        Return the underlying boto3 S3 client.
+
+        Returns:
+            BaseClient: The boto3 S3 client instance.
+        """
+        return self.client
+
 
 class AwsS3Client(S3Client):
     """
@@ -907,6 +938,15 @@ class AwsS3Client(S3Client):
         except ClientError as e:
             self.loggit.error(e)
             raise ActionError(e)
+
+    def get_client(self) -> BaseClient:
+        """
+        Get the S3 client.
+
+        Returns:
+            boto3.client: The S3 client.
+        """
+        return self.client
 
 
 def s3_client_factory(provider: str) -> S3Client:
