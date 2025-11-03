@@ -97,7 +97,6 @@ class Repository:
         if isinstance(self.expires_at, str):
             self.expires_at = datetime.fromisoformat(self.expires_at)
 
-
     @classmethod
     def from_elasticsearch(
         cls, client: Elasticsearch, name: str, index: str = STATUS_INDEX
@@ -142,7 +141,7 @@ class Repository:
                 "Error fetching Repository from Elasticsearch: %s (type: %s)",
                 e,
                 type(e).__name__,
-                exc_info=True
+                exc_info=True,
             )
             return None
 
@@ -161,10 +160,20 @@ class Repository:
         logging.debug(f"Repository start: {self.start}")
         logging.debug(f"Repository end: {self.end}")
         # Convert datetime objects to ISO strings for proper storage
-        start_str = self.start.isoformat() if isinstance(self.start, datetime) else self.start
+        start_str = (
+            self.start.isoformat() if isinstance(self.start, datetime) else self.start
+        )
         end_str = self.end.isoformat() if isinstance(self.end, datetime) else self.end
-        thawed_at_str = self.thawed_at.isoformat() if isinstance(self.thawed_at, datetime) else self.thawed_at
-        expires_at_str = self.expires_at.isoformat() if isinstance(self.expires_at, datetime) else self.expires_at
+        thawed_at_str = (
+            self.thawed_at.isoformat()
+            if isinstance(self.thawed_at, datetime)
+            else self.thawed_at
+        )
+        expires_at_str = (
+            self.expires_at.isoformat()
+            if isinstance(self.expires_at, datetime)
+            else self.expires_at
+        )
 
         return {
             "name": self.name,
@@ -203,6 +212,7 @@ class Repository:
             None
         """
         from .constants import THAW_STATE_THAWING
+
         self.thaw_state = THAW_STATE_THAWING
         self.expires_at = expires_at
         self.is_thawed = True  # Maintain backward compatibility
@@ -219,6 +229,7 @@ class Repository:
         """
         from .constants import THAW_STATE_THAWED
         from datetime import datetime, timezone
+
         self.thaw_state = THAW_STATE_THAWED
         self.thawed_at = datetime.now(timezone.utc)
         self.is_thawed = True  # Maintain backward compatibility
@@ -235,6 +246,7 @@ class Repository:
             None
         """
         from .constants import THAW_STATE_EXPIRED
+
         self.thaw_state = THAW_STATE_EXPIRED
         # Keep thawed_at and expires_at for historical tracking
 
@@ -249,6 +261,7 @@ class Repository:
             None
         """
         from .constants import THAW_STATE_FROZEN
+
         self.thaw_state = THAW_STATE_FROZEN
         self.is_thawed = False  # Maintain backward compatibility
         self.is_mounted = False
@@ -309,7 +322,7 @@ class Settings:
         base_path_prefix (str): The base path prefix.
         canned_acl (str): The canned ACL.
         storage_class (str): The storage class.
-        provider (str): The provider.
+        provider (str): The cloud provider (aws, gcp, or azure).
         rotate_by (str): The rotation style.
         style (str): The style of the settings.
         last_suffix (str): The last suffix.
@@ -371,8 +384,12 @@ class Settings:
         if last_suffix:
             self.last_suffix = last_suffix
         if thaw_request_retention_days_completed:
-            self.thaw_request_retention_days_completed = thaw_request_retention_days_completed
+            self.thaw_request_retention_days_completed = (
+                thaw_request_retention_days_completed
+            )
         if thaw_request_retention_days_failed:
             self.thaw_request_retention_days_failed = thaw_request_retention_days_failed
         if thaw_request_retention_days_refrozen:
-            self.thaw_request_retention_days_refrozen = thaw_request_retention_days_refrozen
+            self.thaw_request_retention_days_refrozen = (
+                thaw_request_retention_days_refrozen
+            )

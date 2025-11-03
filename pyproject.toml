@@ -43,6 +43,13 @@ test = [
     "filelock",
 ]
 doc = ["sphinx", "sphinx_rtd_theme"]
+gcp = ["google-cloud-storage>=2.0.0"]
+azure = ["azure-storage-blob>=12.0.0", "azure-identity>=1.12.0"]
+all = [
+    "google-cloud-storage>=2.0.0",
+    "azure-storage-blob>=12.0.0",
+    "azure-identity>=1.12.0"
+]
 
 [project.scripts]
 curator = "curator.cli:cli"

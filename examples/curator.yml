@@ -30,3 +30,59 @@ logging:
   logfile: /path/to/file.log
   logformat: default
   blacklist: ['elastic_transport', 'urllib3']
+
+# Deepfreeze configuration for multi-cloud backend support
+# This section is optional. If not specified, defaults to AWS provider.
+deepfreeze:
+  # Provider selection: aws, gcp, or azure
+  provider: aws
+
+  # AWS S3/Glacier configuration
+  aws:
+    # AWS region for bucket operations (e.g., us-west-2, eu-west-1)
+    region: us-west-2
+
+    # Storage class mappings for AWS
+    # Map logical names to AWS-specific storage classes
+    storage_class_map:
+      cold: GLACIER                    # Standard Glacier storage
+      deep_cold: DEEP_ARCHIVE          # Deep Archive (lowest cost)
+      intelligent: INTELLIGENT_TIERING # Intelligent-Tiering
+      standard: STANDARD               # Standard storage
+
+    # Retrieval tier for thaw operations: Standard, Expedited, or Bulk
+    # Standard: 3-5 hours, Expedited: 1-5 minutes (extra cost), Bulk: 5-12 hours (lower cost)
+    retrieval_tier: Standard
+
+  # Google Cloud Platform (GCP) Cloud Storage configuration
+  gcp:
+    # GCP location for bucket operations
+    # Can be a region (e.g., us-west1) or multi-region (e.g., us, eu, asia)
+    location: us-west1
+
+    # Storage class mappings for GCP
+    # Map logical names to GCP-specific storage classes
+    storage_class_map:
+      cold: COLDLINE        # Coldline storage (30-day minimum)
+      deep_cold: ARCHIVE    # Archive storage (365-day minimum, lowest cost)
+      standard: STANDARD    # Standard storage
+
+    # Note: GCP does not have retrieval tiers like AWS
+    # Archive and Coldline restore to Standard storage class
+
+  # Microsoft Azure Blob Storage configuration
+  # Azure support coming soon
+  azure:
+    # Azure location/region for storage account (e.g., westus2, eastus)
+    location: westus2
+
+    # Storage class mappings for Azure
+    # Map logical names to Azure-specific access tiers
+    storage_class_map:
+      cold: Cool        # Cool tier (30-day minimum)
+      deep_cold: Archive # Archive tier (180-day minimum, lowest cost)
+      standard: Hot     # Hot tier (frequent access)
+
+    # Rehydration priority for thaw operations: Standard or High
+    # Standard: up to 15 hours, High: under 1 hour (extra cost)
+    rehydration_priority: Standard

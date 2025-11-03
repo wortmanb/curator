@@ -498,10 +498,14 @@ class TestS3ClientFactory:
             client = s3_client_factory("aws")
             assert isinstance(client, AwsS3Client)
 
+    def test_factory_gcp_not_implemented(self):
+        """Test factory raises NotImplementedError for gcp provider"""
+        with pytest.raises(NotImplementedError, match="GCP S3Client is not implemented"):
+            s3_client_factory("gcp")
 
     def test_factory_azure_not_implemented(self):
-        """Test factory raises ActionError for azure provider when dependencies missing"""
-        with pytest.raises(ActionError, match="Install with: pip install elasticsearch-curator\\[azure\\]"):
+        """Test factory raises NotImplementedError for azure provider"""
+        with pytest.raises(NotImplementedError, match="Azure S3Client is not implemented"):
             s3_client_factory("azure")
 
     def test_factory_unknown_provider(self):
@@ -576,9 +580,9 @@ def test_refreeze():
 
 def test_s3_client_factory():
     assert isinstance(s3_client_factory("aws"), AwsS3Client)
-    with pytest.raises(ActionError):
+    with pytest.raises(NotImplementedError):
         s3_client_factory("gcp")
-    with pytest.raises(ActionError):
+    with pytest.raises(NotImplementedError):
         s3_client_factory("azure")
     with pytest.raises(ValueError):
         s3_client_factory("unknown")

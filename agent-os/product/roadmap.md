@@ -1,10 +1,10 @@
 # Product Roadmap
 
-1. [ ] GCP Cloud Storage Backend - Implement GCP Cloud Storage client with support for Archive and Coldline storage classes, including bucket lifecycle management, object restoration, and authentication via service accounts. Complete with end-to-end integration tests against live GCP environment. `L`
+1. [x] GCP Cloud Storage Backend - Implement GCP Cloud Storage client with support for Archive and Coldline storage classes, including bucket lifecycle management, object restoration, and authentication via service accounts. Complete with end-to-end integration tests against live GCP environment. `L`
 
 2. [ ] Azure Blob Storage Backend - Implement Azure Blob Storage client with support for Archive tier, including container management, blob restoration with rehydration priority tiers, and authentication via managed identities or connection strings. Complete with end-to-end integration tests against live Azure environment. `L`
 
-3. [ ] Multi-Cloud Provider Selection - Add provider configuration option to setup command and update CLI to allow users to choose between AWS, GCP, or Azure at initialization time. Validate provider-specific credentials and permissions during setup precondition checks. `M`
+3. [x] Multi-Cloud Provider Selection - Add provider configuration option to setup command and update CLI to allow users to choose between AWS, GCP, or Azure at initialization time. Validate provider-specific credentials and permissions during setup precondition checks. `M`
 
 4. [ ] Cross-Provider Migration - Build tooling to migrate existing deepfreeze repositories from one cloud provider to another (e.g., AWS to GCP) while preserving snapshot metadata, repository structure, and date ranges. Include validation and rollback capabilities. `XL`
 
