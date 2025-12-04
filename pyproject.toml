@@ -30,6 +30,7 @@ keywords = [
 ]
 dependencies = [
     "boto3",
+    "deepfreeze-core>=1.0.0",
     "es_client==8.19.5",
     "rich"
 ]
